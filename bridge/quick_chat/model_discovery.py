@@ -5,9 +5,11 @@ from __future__ import annotations
 import json
 import os
 import re
+import selectors
 import subprocess
+import time
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Mapping
 
 from .adapters.base import ModelOption
 
@@ -76,6 +78,83 @@ def _run(
             raise ModelDiscoveryError(f"Authenticate {argv[0]} before discovering models.")
         raise ModelDiscoveryError(f"{argv[0]} could not list models.")
     return output
+
+
+def _exchange_json_response(
+    argv: tuple[str, ...],
+    messages: tuple[Mapping[str, object], ...],
+    response_id: int,
+    cwd: Path | None,
+    timeout: float,
+) -> dict[str, object]:
+    """Keep a JSONL server alive until its requested response is received."""
+    try:
+        process = subprocess.Popen(
+            argv,
+            cwd=cwd,
+            env=_safe_environment(),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            bufsize=1,
+            shell=False,
+            start_new_session=True,
+        )
+    except FileNotFoundError as error:
+        raise ModelDiscoveryError(f"{argv[0]} is not installed.") from error
+
+    if process.stdin is None or process.stdout is None:
+        process.kill()
+        raise ModelDiscoveryError(f"{argv[0]} could not start model discovery.")
+
+    selector = selectors.DefaultSelector()
+    output_bytes = 0
+    try:
+        selector.register(process.stdout, selectors.EVENT_READ)
+        for message in messages:
+            process.stdin.write(json.dumps(message, separators=(",", ":")) + "\n")
+        process.stdin.flush()
+
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            remaining = max(0.0, deadline - time.monotonic())
+            ready = selector.select(remaining)
+            if not ready:
+                break
+            line = process.stdout.readline()
+            if not line:
+                if process.poll() is not None:
+                    break
+                continue
+            output_bytes += len(line.encode("utf-8", errors="replace"))
+            if output_bytes > MAX_OUTPUT_BYTES:
+                raise ModelDiscoveryError(
+                    f"{argv[0]} returned an oversized model catalog."
+                )
+            try:
+                value = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(value, dict) and value.get("id") == response_id:
+                return value
+        raise ModelDiscoveryError(f"{argv[0]} returned no model catalog response.")
+    except (BrokenPipeError, OSError) as error:
+        raise ModelDiscoveryError(f"{argv[0]} could not list models.") from error
+    finally:
+        selector.close()
+        try:
+            process.stdin.close()
+        except OSError:
+            pass
+        if process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=1)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=1)
+        process.stdout.close()
 
 
 def _identifier(value: str) -> str | None:
@@ -174,22 +253,13 @@ def discover_codex_models(cwd: Path | None = None) -> tuple[ModelOption, ...]:
             "params": {"cursor": None, "limit": 200, "includeHidden": False},
         },
     )
-    payload = "\n".join(
-        json.dumps(message, separators=(",", ":")) for message in messages
-    ) + "\n"
-    output = _run(("codex", "app-server", "--stdio"), cwd, payload, timeout=20)
-
-    response: dict[str, object] | None = None
-    for line in output.splitlines():
-        try:
-            value = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if isinstance(value, dict) and value.get("id") == 2:
-            response = value
-            break
-    if response is None:
-        raise ModelDiscoveryError("Codex returned no model catalog response.")
+    response = _exchange_json_response(
+        ("codex", "app-server", "--stdio"),
+        messages,
+        response_id=2,
+        cwd=cwd,
+        timeout=20,
+    )
     if "error" in response:
         raise ModelDiscoveryError("Codex could not list models.")
 

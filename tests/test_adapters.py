@@ -1,4 +1,5 @@
 import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -12,6 +13,7 @@ from bridge.quick_chat.adapters.cursor import CursorAdapter
 from bridge.quick_chat.adapters.grok import GrokAdapter
 from bridge.quick_chat.adapters.opencode import OpenCodeAdapter
 from bridge.quick_chat.adapters.pi import PiAdapter
+from bridge.quick_chat.model_discovery import _exchange_json_response
 from bridge.quick_chat.protocol import Attachment
 
 
@@ -42,25 +44,48 @@ def adjacent_pairs(values):
 
 
 class CodexAdapterTests(unittest.TestCase):
-    @patch("bridge.quick_chat.model_discovery.subprocess.run")
-    def test_codex_discovers_models_from_app_server(self, run):
-        run.return_value = Mock(
-            returncode=0,
-            stdout=(
-                '{"id":1,"result":{}}\n'
-                '{"id":2,"result":{"data":['
-                '{"model":"gpt-5.6-sol","displayName":"GPT-5.6 Sol",'
-                '"description":"Fast coding model","hidden":false},'
-                '{"model":"hidden","displayName":"Hidden","hidden":true}'
-                ']}}\n'
-            ),
-            stderr="",
+    def test_codex_exchange_keeps_jsonl_server_open_for_async_response(self):
+        server = (
+            "import json,sys,time\n"
+            "for line in sys.stdin:\n"
+            " request=json.loads(line)\n"
+            " if request.get('id') == 2:\n"
+            "  time.sleep(0.05)\n"
+            "  print(json.dumps({'id':2,'result':{'ready':True}}), flush=True)\n"
+            "  break\n"
         )
+        response = _exchange_json_response(
+            (sys.executable, "-u", "-c", server),
+            ({"id": 1}, {"id": 2}),
+            response_id=2,
+            cwd=Path.home(),
+            timeout=2,
+        )
+        self.assertEqual(response["result"], {"ready": True})
+
+    @patch("bridge.quick_chat.model_discovery._exchange_json_response")
+    def test_codex_discovers_models_from_app_server(self, exchange):
+        exchange.return_value = {
+            "id": 2,
+            "result": {
+                "data": [
+                    {
+                        "model": "gpt-5.6-sol",
+                        "displayName": "GPT-5.6 Sol",
+                        "description": "Fast coding model",
+                        "hidden": False,
+                    },
+                    {"model": "hidden", "displayName": "Hidden", "hidden": True},
+                ]
+            },
+        }
         models = CodexAdapter().discover_models(Path.home())
         self.assertEqual([model.id for model in models], ["gpt-5.6-sol"])
         self.assertEqual(models[0].label, "GPT-5.6 Sol")
-        self.assertEqual(run.call_args.args[0], ("codex", "app-server", "--stdio"))
-        self.assertIn('"method":"model/list"', run.call_args.kwargs["input"])
+        self.assertEqual(
+            exchange.call_args.args[0], ("codex", "app-server", "--stdio")
+        )
+        self.assertEqual(exchange.call_args.args[1][-1]["method"], "model/list")
 
     def test_codex_is_read_only_and_accepts_prompt_on_stdin(self):
         call = CodexAdapter().start(context(prompt="explain", model="gpt-5"))
