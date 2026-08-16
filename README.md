@@ -2,9 +2,10 @@
 
 Quick Chat is a third-party Omarchy shell plugin for fast Q&A through agent
 CLIs already installed and authenticated on your machine. It opens as a
-keyboard-first centered popup and expands into a larger history and profile
-workspace when needed. The workspace keeps one focused page on screen at a
-time—Chat, History, or Profiles—instead of compressing them into sidebars.
+keyboard-first, centered 620×620 standard floating window. It remains a normal
+desktop toplevel: other windows stay usable, Omarchy can tile or maximize it,
+and Chat, History, and Settings share the current window geometry instead of
+switching to a different shell surface.
 
 The built-in profiles are Codex, Claude Code, OpenCode, Grok, Cursor, and Pi.
 Custom shell-free command profiles are also supported.
@@ -30,11 +31,38 @@ commands.
 
 ## Use
 
-Press `SUPER+ALT+SPACE` to open the default Codex profile. Enter sends;
-`Ctrl+Enter` adds a line. Escape hides the popup without cancelling the active
-turn, so reopening restores it. History and Settings open from their header
-icons, and the picker beside the prompt switches agents and models. Each named
-profile can have its own Hyprland shortcut.
+Fresh installs use `SUPER+ALT+C` to summon the selected profile. Schema-1
+configurations migrate automatically and keep their existing global shortcut,
+including the former `SUPER+ALT+SPACE` default. Each named profile can also
+have its own Hyprland shortcut.
+
+Enter sends;
+`Ctrl+Enter` adds a line. `Escape` closes the deepest open picker or dialog,
+returns a page to Chat, and only then hides the window; it does not cancel an
+active turn. `Alt+Left` returns to Chat. `Tab` and `Shift+Tab` traverse every
+interactive control, while arrows, `Home`, `End`, `Enter`, and `Space` operate
+the picker and History cursors.
+
+The configurable in-window defaults are:
+
+| Action | Shortcut |
+| --- | --- |
+| Focus prompt | `Ctrl+L` |
+| Agent and model | `Ctrl+K` |
+| Thinking effort | `Ctrl+.` |
+| History | `Ctrl+H` |
+| Settings | `Ctrl+,` |
+| Private mode | `Ctrl+Shift+P` |
+| New chat | `Ctrl+N` |
+
+Settings captures replacement shortcuts, reports duplicates and reserved keys,
+and can reset the complete set to these defaults.
+
+Use `Super+T` to move between floating and tiled layouts. Use Super+drag or a
+header drag to move the floating window. The header maximize control and
+`Super+Alt+F` both use Hyprland's standard maximize state and restore normally.
+The plugin defines no local window alpha; inherited opacity, colors, font,
+spacing, borders, and control states all follow the active Omarchy theme.
 
 Quick Chat also adds a searchable **Quick Chat** action to the root Omarchy
 menu. The entry is merged idempotently into the user menu extension without
@@ -43,11 +71,9 @@ disabled. Current Omarchy releases render all stock root rows before extension
 rows, so Quick Chat is the first custom row. The planned relative-order hook
 will default it immediately after Apps and let users choose another position.
 
-The popup itself has no full-screen backdrop or click-blocking overlay. It
-requests keyboard focus only when interacted with, so it can stay visible while
-you focus and use another window. Its surface, controls, state fills, borders,
-corners, spacing, type scale, and font family bind to Omarchy's live theme
-tokens and update with the active theme.
+The window has no full-screen backdrop or click-blocking scrim. It requests
+focus when summoned but does not hold focus, so it can stay visible while you
+use another app.
 
 The header switches profiles and toggles private mode. History keeps the 20
 most recently updated conversations by default. Set any positive finite limit
@@ -86,6 +112,26 @@ ID keeps manual configuration available. Claude Code exposes its supported
 Catalog calls use fixed argument arrays, bounded output, and short timeouts, and
 their results are cached for the bridge lifetime.
 
+The effort control sits immediately beside the agent/model control. It contains
+only choices explicitly advertised for the active model or CLI. `Default`
+means Quick Chat omits an effort override and lets the harness decide. If no
+choice is advertised, the disabled control remains on `Default`; Quick Chat
+does not guess. Changing to a model that does not support the saved choice
+resets it safely and shows an inline explanation.
+
+Native effort translation is deliberately adapter-specific:
+
+- Codex uses `-c model_reasoning_effort="high"` before `exec`.
+- Claude `--effort` receives the selected value.
+- OpenCode `--variant` receives the selected value.
+- Grok `--reasoning-effort` receives the selected value only when Grok
+  advertises choices.
+- Cursor `effort=` is merged into the selected model's final parameter block.
+- Pi `--thinking` receives the selected value.
+
+Cursor always runs with `--mode ask`; effort selection never weakens that
+read-only Q&A mode.
+
 Every built-in process adapter uses read-only or plan behavior. Quick Chat never
 passes force, yolo, full-auto, dangerously-skip-permissions, or equivalent
 flags. Custom command arguments are arrays; prompts and paths are never shell
@@ -113,6 +159,12 @@ Configuration is stored in
 `$XDG_STATE_HOME/omarchy/quick-chat/history.json`, with standard home-directory
 fallbacks. Corrupt files are quarantined beside the original and defaults are
 loaded with a visible recovery notice.
+
+Configuration schema 2 adds the global `uiShortcuts` object and per-profile
+`thinkingEffort` value. Loading schema 1 preserves profiles, model selection,
+history/private/transport/custom-command settings, and existing summon keys,
+then rewrites the validated configuration atomically when the config directory
+is writable.
 
 ## Troubleshooting
 

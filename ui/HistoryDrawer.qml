@@ -189,8 +189,7 @@ FocusScope {
             Text {
               id: trail
               text: "›"
-              color: Color.popups.text
-              opacity: 0.4
+              color: Qt.darker(Color.popups.text, 2.2)
               font.family: Style.font.menuFamily
               font.pixelSize: Style.font.heading
               anchors.verticalCenter: parent.verticalCenter

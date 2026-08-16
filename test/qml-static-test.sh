@@ -12,6 +12,38 @@ root = pathlib.Path(sys.argv[1])
 menu = (root / "QuickChat.qml").read_text()
 service = (root / "Service.qml").read_text()
 readme = (root / "README.md").read_text()
+readme_lower = readme.lower()
+
+for stale_phrase in ("expanded workspace", "overlay"):
+    assert stale_phrase not in readme_lower, (
+        f"README must not describe the retired {stale_phrase} behavior"
+    )
+assert not re.search(r"Ctrl\+Enter[^\n.]{0,80}\bsend", readme, re.IGNORECASE), (
+    "README must not describe Ctrl+Enter as send"
+)
+for shortcut in (
+    "Ctrl+L", "Ctrl+K", "Ctrl+.", "Ctrl+H", "Ctrl+,", "Ctrl+Shift+P", "Ctrl+N"
+):
+    assert shortcut in readme, f"README must document the {shortcut} default"
+for behavior in (
+    "Super+T",
+    "Super+drag",
+    "header drag",
+    "standard maximize",
+    "inherited opacity",
+):
+    assert behavior.lower() in readme_lower, f"README must document {behavior}"
+for effort_mapping in (
+    'model_reasoning_effort="',
+    "Claude `--effort`",
+    "OpenCode `--variant`",
+    "Grok `--reasoning-effort`",
+    "Cursor `effort=`",
+    "Pi `--thinking`",
+):
+    assert effort_mapping in readme, (
+        f"README must document the native effort mapping {effort_mapping}"
+    )
 
 assert re.search(r"\bItem\s*\{", menu), "QuickChat.qml root must be an Item"
 assert re.search(r"\bItem\s*\{", service), "Service.qml root must be an Item"
@@ -36,6 +68,10 @@ assert "Quickshell.Wayland" not in menu
 assert "WlrLayershell" not in menu
 assert "WlrKeyboardFocus" not in menu
 assert "opacity:" not in menu, "Quick Chat must inherit compositor opacity"
+for qml_path in root.rglob("*.qml"):
+    assert not re.search(r"\bopacity\s*:", qml_path.read_text()), (
+        f"{qml_path.name} must not override inherited compositor opacity"
+    )
 assert 'title: "Quick Chat"' in menu
 assert "implicitWidth: Style.space(620)" in menu
 assert "implicitHeight: Style.space(620)" in menu

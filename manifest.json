@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "community.quick-chat",
   "name": "Quick Chat",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "Omarchy Quick Chat contributors",
   "license": "MIT",
   "description": "Quick Q&A through locally installed agent CLIs",
