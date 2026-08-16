@@ -38,6 +38,16 @@ Item {
   property string historyGetRequestId: ""
   property string clearRequestId: ""
   property string profileSaveRequestId: ""
+  property var profileSaveRollback: null
+  property string profileSaveError: ""
+  readonly property bool hasBlockingTransient: Boolean(
+    composer.popupOpen
+      || profilePage.dialogOpen
+      || profilePage.shortcutCaptureActive
+      || clearDialog.opened
+      || imageChoice.opened
+      || pendingApproval
+  )
 
   signal moveRequested()
   signal maximizeRequested()
@@ -54,6 +64,52 @@ Item {
       return
     }
     openPage(page)
+  }
+
+  function handleBack() {
+    if (clearDialog.opened) {
+      clearDialog.opened = false
+      return true
+    }
+    if (imageChoice.opened) {
+      imageChoice.opened = false
+      pendingPrompt = ""
+      return true
+    }
+    if (profilePage.closeTransient()) return true
+    if (composer.closeTransient()) return true
+    if (pendingApproval) {
+      answerApproval(pendingApproval.approvalId, false)
+      return true
+    }
+    if (activePage !== "chat") {
+      activePage = "chat"
+      Qt.callLater(focusActivePage)
+      return true
+    }
+    return false
+  }
+
+  function openAgentPicker() {
+    if (hasBlockingTransient || chatState.running) return
+    activePage = "chat"
+    Qt.callLater(function() { composer.openAgentPicker() })
+  }
+
+  function openEffortPicker() {
+    if (hasBlockingTransient || chatState.running) return
+    activePage = "chat"
+    Qt.callLater(function() { composer.openEffortPicker() })
+  }
+
+  function togglePrivate() {
+    if (hasBlockingTransient) return
+    privateMode = !privateMode
+  }
+
+  function shortcutHint(action) {
+    if (!profileState || !profileState.uiShortcuts) return ""
+    return String(profileState.uiShortcuts[action] || "")
   }
 
   function focusActivePage() {
@@ -252,6 +308,7 @@ Item {
   }
 
   function newConversation() {
+    if (chatState.running) return
     conversationId = "conversation-" + Date.now()
     chatState = ChatModel.initialState(conversationId, profileId)
     activePage = "chat"
@@ -259,6 +316,8 @@ Item {
   }
 
   function saveProfiles(nextState) {
+    profileSaveRollback = profileState
+    profileSaveError = ""
     profileState = nextState
     profileSaveRequestId = newRequestId()
     bridge.send({
@@ -481,7 +540,16 @@ Item {
         root.newConversation()
       } else if (event.type === "complete" && event.requestId === root.profileSaveRequestId) {
         root.profileState = ProfileModel.normalize(event.data.config)
+        root.profileSaveRollback = null
+        root.profileSaveError = ""
+        root.profileSaveRequestId = ""
         if (!root.activeProfile()) root.profileId = root.profileState.selectedId
+      } else if (event.type === "error" && event.requestId === root.profileSaveRequestId) {
+        if (root.profileSaveRollback) root.profileState = root.profileSaveRollback
+        root.profileSaveRollback = null
+        root.profileSaveRequestId = ""
+        root.profileSaveError = event.data.message || "Settings could not be saved."
+        root.setEffortStatus(root.profileSaveError)
       } else if ((event.type === "complete" || event.type === "error")
                  && root.finishModelRequest(event)) {
         // Model catalog events belong to pickers, not the transcript.
@@ -525,6 +593,9 @@ Item {
       privateMode: root.privateMode
       maximized: root.maximized
       activePage: root.activePage
+      privateShortcut: root.shortcutHint("private")
+      historyShortcut: root.shortcutHint("history")
+      settingsShortcut: root.shortcutHint("settings")
       onPrivateChanged: function(value) { root.privateMode = value }
       onHistoryRequested: root.togglePage("history")
       onSettingsRequested: root.togglePage("profiles")
@@ -596,6 +667,8 @@ Item {
           thinkingEffort: root.activeProfile()
             ? root.activeProfile().thinkingEffort : null
           statusText: root.effortStatus
+          modelShortcut: root.shortcutHint("model")
+          effortShortcut: root.shortcutHint("effort")
           onSendRequested: function(prompt) { root.sendPrompt(prompt) }
           onContextRequested: function(mode) { root.requestContext(mode) }
           onAgentModelSelected: function(nextProfileId, modelId) {
@@ -616,6 +689,7 @@ Item {
         id: historyPage
         conversations: root.historyItems
         profiles: root.profileState ? root.profileState.profiles : []
+        newChatShortcut: root.shortcutHint("newChat")
         onConversationSelected: function(identifier) { root.loadConversation(identifier) }
         onClearRequested: clearDialog.opened = true
         onNewChatRequested: root.newConversation()
@@ -629,12 +703,16 @@ Item {
         adapterStates: root.adapterStates
         modelsLoading: root.modelsLoadingFor(editingAdapterId)
         modelsError: root.modelErrorFor(editingAdapterId)
-        shortcutError: root.service ? root.service.lastError : ""
+        shortcutError: root.profileSaveError
+          || (root.service ? root.service.lastError : "")
         onModelDiscoveryRequested: function(adapterId, refresh) {
           root.requestModels(adapterId, refresh)
         }
         onHistoryLimitChanged: function(value) {
           root.saveProfiles(ProfileModel.setHistoryLimit(root.profileState, value))
+        }
+        onUiShortcutsChanged: function(shortcuts) {
+          root.saveProfiles(ProfileModel.setUiShortcuts(root.profileState, shortcuts))
         }
         onProfilePatchRequested: function(values) {
           root.saveProfiles(ProfileModel.update(root.profileState, {

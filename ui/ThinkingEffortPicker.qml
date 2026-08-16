@@ -12,6 +12,7 @@ Item {
   property var value: null
   property var rows: []
   property string currentLabel: "Default"
+  property string shortcutHint: ""
   property color foreground: Color.popups.text
   property color background: Color.popups.background
   property color popupBorder: Color.popups.border
@@ -151,6 +152,7 @@ Item {
       visible: triggerHover.hovered && !effortPopup.opened
       text: root.choices.length > 0
         ? "Choose thinking effort"
+          + (root.shortcutHint ? " (" + root.shortcutHint + ")" : "")
         : "This model does not advertise thinking effort"
       fontFamily: root.fontFamily
     }

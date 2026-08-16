@@ -70,6 +70,36 @@ assert.equal(
 )
 assert.throws(() => ProfileModel.setUiShortcut(migratedProfiles, "model", "Enter"))
 assert.throws(() => ProfileModel.setUiShortcut(migratedProfiles, "history", "Ctrl+K"))
+const resetShortcuts = ProfileModel.resetUiShortcuts(migratedProfiles)
+assert.deepEqual(resetShortcuts.uiShortcuts, ProfileModel.defaultUiShortcuts())
+const bulkShortcuts = ProfileModel.setUiShortcuts(migratedProfiles, {
+  focusInput: "control+l",
+  model: "Ctrl+K",
+  effort: "Ctrl+.",
+  history: "Ctrl+H",
+  settings: "Ctrl+,",
+  private: "Ctrl+Shift+P",
+  newChat: "Ctrl+N"
+})
+assert.equal(bulkShortcuts.uiShortcuts.focusInput, "Ctrl+L")
+assert.throws(() => ProfileModel.setUiShortcuts(migratedProfiles, {
+  focusInput: "Ctrl+L",
+  model: "Ctrl+K",
+  effort: "Ctrl+.",
+  history: "Ctrl+K",
+  settings: "Ctrl+,",
+  private: "Ctrl+Shift+P",
+  newChat: "Ctrl+N"
+}))
+assert.throws(() => ProfileModel.setUiShortcuts(migratedProfiles, {
+  focusInput: "Ctrl+L",
+  model: "Ctrl+K",
+  effort: "Enter",
+  history: "Ctrl+H",
+  settings: "Ctrl+,",
+  private: "Ctrl+Shift+P",
+  newChat: "Ctrl+N"
+}))
 
 const pickerProfiles = [
   { id: "codex", name: "Codex", icon: "C", adapterId: "codex", model: "gpt-5.6-sol" },

@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Window
 import qs.Commons
 import qs.Ui
 import "../models/EffortModel.js" as EffortModel
@@ -16,14 +17,42 @@ FocusScope {
   property string shortcutError: ""
   property bool manualModelEntry: false
   readonly property string editingAdapterId: adapterPicker.value
+  readonly property bool dialogOpen: removeDialog.opened
+  readonly property bool shortcutCaptureActive: shortcutEditor.captureActive
   signal historyLimitChanged(var value)
   signal profilePatchRequested(var values)
   signal duplicateRequested()
   signal removeRequested()
   signal modelDiscoveryRequested(string adapterId, bool refresh)
+  signal uiShortcutsChanged(var shortcuts)
 
   function focusPage() {
-    settingsScroll.forceActiveFocus()
+    nameField.forceActiveFocus()
+    Qt.callLater(function() { root.ensureFocusedItemVisible(nameField) })
+  }
+
+  function closeTransient() {
+    if (!removeDialog.opened) return false
+    removeDialog.opened = false
+    return true
+  }
+
+  function ensureFocusedItemVisible(item) {
+    if (!item || !root.visible) return
+    var flick = settingsScroll.contentItem
+    if (!flick || flick.contentY === undefined) return
+    var content = flick.contentItem || flick
+    var point = item.mapToItem(content, 0, 0)
+    var top = point.y
+    var bottom = top + (item.height || 0)
+    var margin = Style.space(16)
+    if (top < flick.contentY + margin)
+      flick.contentY = Math.max(0, top - margin)
+    else if (bottom > flick.contentY + flick.height - margin)
+      flick.contentY = Math.min(
+        Math.max(0, flick.contentHeight - flick.height),
+        bottom + margin - flick.height
+      )
   }
 
   function loadProfile() {
@@ -154,6 +183,16 @@ FocusScope {
     if (!modelsLoading) reconcileEditingEffort()
   }
 
+  Connections {
+    id: focusWindowConnection
+    target: root.Window.window
+    ignoreUnknownSignals: true
+    function onActiveFocusItemChanged() {
+      if (focusWindowConnection.target)
+        root.ensureFocusedItemVisible(focusWindowConnection.target.activeFocusItem)
+    }
+  }
+
   ThemedScrollView {
     id: settingsScroll
     anchors.fill: parent
@@ -190,6 +229,7 @@ FocusScope {
               tooltipText: "Duplicate profile"
               foreground: Color.popups.text
               fontFamily: Style.font.menuFamily
+              focusable: true
               onClicked: root.duplicateRequested()
             }
 
@@ -199,6 +239,7 @@ FocusScope {
               foreground: Color.popups.text
               hoverColor: Color.urgent
               fontFamily: Style.font.menuFamily
+              focusable: true
               onClicked: removeDialog.opened = true
             }
           }
@@ -503,6 +544,26 @@ FocusScope {
       }
 
       PanelSectionHeader {
+        text: "SHORTCUTS"
+        foreground: Color.popups.text
+        fontFamily: Style.font.menuFamily
+      }
+
+      ShortcutEditor {
+        Layout.fillWidth: true
+        profileState: root.profileState
+        shortcuts: root.profileState ? root.profileState.uiShortcuts : ({})
+        onShortcutsChanged: function(shortcuts) {
+          root.uiShortcutsChanged(shortcuts)
+        }
+      }
+
+      PanelSeparator {
+        Layout.fillWidth: true
+        foreground: Color.popups.text
+      }
+
+      PanelSectionHeader {
         text: "PRIVACY & HISTORY"
         foreground: Color.popups.text
         fontFamily: Style.font.menuFamily
@@ -672,6 +733,7 @@ FocusScope {
         foreground: Color.popups.text
         fontFamily: Style.font.menuFamily
         bordered: true
+        focusable: true
         onClicked: root.profilePatchRequested(root.values())
       }
     }

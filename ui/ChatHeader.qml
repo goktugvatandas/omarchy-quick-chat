@@ -10,6 +10,9 @@ Item {
   property bool privateMode: false
   property bool maximized: false
   property string activePage: "chat"
+  property string privateShortcut: ""
+  property string historyShortcut: ""
+  property string settingsShortcut: ""
   property var profiles: [
     { id: "codex", name: "Codex", icon: "󰚩" },
     { id: "claude", name: "Claude Code", icon: "󰚩" },
@@ -97,7 +100,10 @@ Item {
     Button {
       iconText: root.privateMode ? "󰈉" : "󰈈"
       tooltipText: root.privateMode
-        ? "Private conversation on" : "Private conversation off"
+        ? "Private conversation on"
+          + (root.privateShortcut ? " (" + root.privateShortcut + ")" : "")
+        : "Private conversation off"
+          + (root.privateShortcut ? " (" + root.privateShortcut + ")" : "")
       selected: root.privateMode
       foreground: Color.popups.text
       fontFamily: Style.font.menuFamily
@@ -108,7 +114,8 @@ Item {
 
     Button {
       iconText: "󰋚"
-      tooltipText: root.activePage === "history" ? "Back to chat" : "History"
+      tooltipText: (root.activePage === "history" ? "Back to chat" : "History")
+        + (root.historyShortcut ? " (" + root.historyShortcut + ")" : "")
       selected: root.activePage === "history"
       foreground: Color.popups.text
       fontFamily: Style.font.menuFamily
@@ -119,7 +126,8 @@ Item {
 
     Button {
       iconText: ""
-      tooltipText: root.activePage === "profiles" ? "Back to chat" : "Settings"
+      tooltipText: (root.activePage === "profiles" ? "Back to chat" : "Settings")
+        + (root.settingsShortcut ? " (" + root.settingsShortcut + ")" : "")
       selected: root.activePage === "profiles"
       foreground: Color.popups.text
       fontFamily: Style.font.menuFamily

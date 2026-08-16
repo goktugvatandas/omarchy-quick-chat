@@ -13,6 +13,7 @@ Item {
   property var modelCatalogs: ({})
   property var modelCatalogErrors: ({})
   property var modelRequests: ({})
+  property string shortcutHint: ""
   property string expandedProfileId: ""
   property string filterText: ""
   property var rows: []
@@ -124,6 +125,33 @@ Item {
     }
   }
 
+  function expandCurrentHarness() {
+    if (resultList.currentIndex < 0 || resultList.currentIndex >= root.rows.length)
+      return
+    var row = root.rows[resultList.currentIndex]
+    if (row.kind === "harness"
+        && root.expandedProfileId !== String(row.profileId))
+      root.toggleHarness(String(row.profileId))
+  }
+
+  function collapseHarness() {
+    if (!root.expandedProfileId) return
+    var identifier = root.expandedProfileId
+    root.expandedProfileId = ""
+    root.filterText = ""
+    Qt.callLater(function() {
+      for (var index = 0; index < root.rows.length; index += 1) {
+        if (root.rows[index].kind === "harness"
+            && String(root.rows[index].profileId) === identifier) {
+          resultList.currentIndex = index
+          resultList.positionViewAtIndex(index, ListView.Contain)
+          break
+        }
+      }
+      resultList.forceActiveFocus()
+    })
+  }
+
   function open() { pickerPopup.open() }
   function close() { pickerPopup.close() }
   function toggle() { pickerPopup.opened ? pickerPopup.close() : pickerPopup.open() }
@@ -159,7 +187,8 @@ Item {
 
     Keys.onPressed: function(event) {
       if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter
-          || event.key === Qt.Key_Space || event.key === Qt.Key_Down) {
+          || event.key === Qt.Key_Space || event.key === Qt.Key_Down
+          || event.key === Qt.Key_Right) {
         root.toggle()
         event.accepted = true
       } else if (event.key === Qt.Key_Escape && pickerPopup.opened) {
@@ -233,6 +262,7 @@ Item {
     PanelToolTip {
       visible: triggerHover.hovered && !pickerPopup.opened
       text: "Choose agent and model"
+        + (root.shortcutHint ? " (" + root.shortcutHint + ")" : "")
       fontFamily: root.fontFamily
     }
 
@@ -366,6 +396,20 @@ Item {
               } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter
                          || event.key === Qt.Key_Space) {
                 root.activateRow(resultList.currentIndex)
+                event.accepted = true
+              } else if (event.key === Qt.Key_Right) {
+                root.expandCurrentHarness()
+                event.accepted = true
+              } else if (event.key === Qt.Key_Left) {
+                root.collapseHarness()
+                event.accepted = true
+              } else if (event.key === Qt.Key_Home) {
+                resultList.currentIndex = 0
+                resultList.positionViewAtBeginning()
+                event.accepted = true
+              } else if (event.key === Qt.Key_End) {
+                resultList.currentIndex = Math.max(0, root.rows.length - 1)
+                resultList.positionViewAtEnd()
                 event.accepted = true
               }
             }

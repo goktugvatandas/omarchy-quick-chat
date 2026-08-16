@@ -16,6 +16,9 @@ ColumnLayout {
   property var effortChoices: []
   property var thinkingEffort: null
   property string statusText: ""
+  property string modelShortcut: ""
+  property string effortShortcut: ""
+  readonly property bool popupOpen: agentPicker.popupOpen || effortPicker.popupOpen
   property alias text: prompt.text
   signal sendRequested(string prompt)
   signal stopRequested()
@@ -29,11 +32,25 @@ ColumnLayout {
   }
 
   function openAgentPicker() {
+    effortPicker.close()
     agentPicker.open()
   }
 
   function openEffortPicker() {
+    agentPicker.close()
     effortPicker.open()
+  }
+
+  function closeTransient() {
+    if (effortPicker.popupOpen) {
+      effortPicker.close()
+      return true
+    }
+    if (agentPicker.popupOpen) {
+      agentPicker.close()
+      return true
+    }
+    return false
   }
 
   function insertNewline() {
@@ -95,6 +112,7 @@ ColumnLayout {
       modelCatalogs: root.modelCatalogs
       modelCatalogErrors: root.modelCatalogErrors
       modelRequests: root.modelRequests
+      shortcutHint: root.modelShortcut
       enabled: !root.running && root.profiles.length > 0
       onSelectionRequested: function(nextProfileId, modelId) {
         root.agentModelSelected(nextProfileId, modelId)
@@ -112,6 +130,7 @@ ColumnLayout {
       choices: root.effortChoices
       value: root.thinkingEffort
       enabled: !root.running
+      shortcutHint: root.effortShortcut
       onSelectionRequested: function(value) { root.effortSelected(value) }
     }
 
@@ -121,6 +140,7 @@ ColumnLayout {
       foreground: Color.popups.text
       fontFamily: Style.font.menuFamily
       horizontalPadding: Style.spacing.sm
+      focusable: true
       onClicked: root.contextRequested("window")
     }
     Button {
@@ -129,6 +149,7 @@ ColumnLayout {
       foreground: Color.popups.text
       fontFamily: Style.font.menuFamily
       horizontalPadding: Style.spacing.sm
+      focusable: true
       onClicked: root.contextRequested("screen")
     }
     Button {
@@ -137,6 +158,7 @@ ColumnLayout {
       foreground: Color.popups.text
       fontFamily: Style.font.menuFamily
       horizontalPadding: Style.spacing.sm
+      focusable: true
       onClicked: root.contextRequested("app")
     }
     Button {
@@ -145,6 +167,7 @@ ColumnLayout {
       foreground: Color.popups.text
       fontFamily: Style.font.menuFamily
       horizontalPadding: Style.spacing.sm
+      focusable: true
       onClicked: root.contextRequested("selection")
     }
 
@@ -167,6 +190,7 @@ ColumnLayout {
       foreground: Color.urgent
       fontFamily: Style.font.menuFamily
       bordered: true
+      focusable: true
       onClicked: root.stopRequested()
     }
 
@@ -178,6 +202,7 @@ ColumnLayout {
       foreground: Color.popups.text
       fontFamily: Style.font.menuFamily
       bordered: true
+      focusable: true
       onClicked: root.sendRequested(prompt.text)
     }
   }

@@ -56,6 +56,7 @@ BorderSurface {
       foreground: Color.popups.text
       fontFamily: Style.font.menuFamily
       bordered: true
+      focusable: true
       onClicked: {
         if (root.error.code === "timeout") root.retryRequested()
         else root.actionRequested(root.error.code, root.error)
@@ -65,6 +66,7 @@ BorderSurface {
       text: "Dismiss"
       foreground: Color.popups.text
       fontFamily: Style.font.menuFamily
+      focusable: true
       onClicked: root.dismissed()
     }
   }

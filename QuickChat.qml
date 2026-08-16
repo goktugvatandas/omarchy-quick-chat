@@ -182,6 +182,18 @@ Item {
         root.requestClose()
     }
 
+    WindowShortcuts {
+      enabled: window.visible && !chat.hasBlockingTransient
+      shortcuts: chat.profileState ? chat.profileState.uiShortcuts : ({})
+      onFocusInputRequested: chat.focusComposer()
+      onModelRequested: chat.openAgentPicker()
+      onEffortRequested: chat.openEffortPicker()
+      onHistoryRequested: chat.togglePage("history")
+      onSettingsRequested: chat.togglePage("profiles")
+      onPrivateRequested: chat.togglePrivate()
+      onNewChatRequested: chat.newConversation()
+    }
+
     BorderSurface {
       id: card
       anchors.fill: parent
@@ -210,9 +222,16 @@ Item {
         onMaximizeRequested: root.toggleMaximized()
       }
 
-      Keys.onEscapePressed: function(event) {
-        root.requestClose()
-        event.accepted = true
+      Keys.priority: Keys.AfterItem
+      Keys.onPressed: function(event) {
+        if (event.key === Qt.Key_Escape) {
+          if (!chat.handleBack()) root.requestClose()
+          event.accepted = true
+        } else if (event.key === Qt.Key_Left
+                   && event.modifiers === Qt.AltModifier) {
+          chat.handleBack()
+          event.accepted = true
+        }
       }
     }
   }

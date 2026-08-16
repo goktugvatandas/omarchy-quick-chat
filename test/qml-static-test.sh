@@ -57,6 +57,12 @@ assert 'Hyprland.dispatch("fullscreenstate " + next)' not in menu
 assert "property bool expanded" not in menu
 assert "requestedWidth" not in menu and "requestedHeight" not in menu
 assert "focusPrimed" not in menu
+assert "WindowShortcuts {" in menu
+assert "shortcuts: chat.profileState ? chat.profileState.uiShortcuts : ({})" in menu
+assert "Keys.priority: Keys.AfterItem" in menu
+assert "event.key === Qt.Key_Escape" in menu
+assert "event.key === Qt.Key_Left" in menu and "Qt.AltModifier" in menu
+assert "chat.handleBack()" in menu and "root.requestClose()" in menu
 assert "HyprlandFocusGrab" not in menu, (
     "Quick Chat must stay open without preventing focus on other windows"
 )
@@ -95,6 +101,11 @@ assert 'root.togglePage("profiles")' in chat_surface, (
 assert "expandRequested" not in chat_surface
 assert "property bool expanded" not in chat_surface
 assert "toggleExpanded" not in chat_surface
+assert "readonly property bool hasBlockingTransient" in chat_surface
+assert "function handleBack()" in chat_surface
+assert "function openAgentPicker()" in chat_surface
+assert "function openEffortPicker()" in chat_surface
+assert "function togglePrivate()" in chat_surface
 open_page = re.search(
     r"function\s+openPage\s*\([^)]*\)\s*\{(.*?)\n\s*\}\n\n\s*function",
     chat_surface,
@@ -128,6 +139,8 @@ assert "anchors.right: actions.left" in chat_header, (
     "the draggable header region must stop before its action buttons"
 )
 assert "expandRequested" not in chat_header and "property bool expanded" not in chat_header
+for shortcut_property in ("privateShortcut", "historyShortcut", "settingsShortcut"):
+    assert f"property string {shortcut_property}" in chat_header
 
 composer = (root / "ui/Composer.qml").read_text()
 assert "HarnessModelPicker {" in composer, (
@@ -154,6 +167,11 @@ assert re.search(
     r"root\.sendRequested\(prompt\.text\)",
     composer,
 ), "Enter without Ctrl must send"
+assert "readonly property bool popupOpen" in composer
+assert "function closeTransient()" in composer
+assert composer.count("focusable: true") >= 6, (
+    "context, stop, and send controls must all be reachable by Tab"
+)
 
 harness_picker = (root / "ui/HarnessModelPicker.qml").read_text()
 assert "QQC.Popup {" in harness_picker, (
@@ -170,6 +188,9 @@ assert "modelDiscoveryRequested" in harness_picker, (
 )
 assert "selectionRequested" in harness_picker, (
     "a nested model must select both its agent and model"
+)
+assert "Qt.Key_Right" in harness_picker and "Qt.Key_Left" in harness_picker, (
+    "the agent/model tree must expand and collapse with arrow keys"
 )
 
 effort_picker = (root / "ui/ThinkingEffortPicker.qml").read_text()
@@ -218,6 +239,8 @@ themed_consumers = [
     root / "ui/InlineError.qml",
     root / "ui/MessageList.qml",
     root / "ui/ProfileSettings.qml",
+    root / "ui/ShortcutCapture.qml",
+    root / "ui/ShortcutEditor.qml",
 ]
 for path in themed_consumers:
     source = path.read_text()
@@ -255,6 +278,46 @@ assert "if (!visible || !activeProfile) return" in profile_settings, (
 )
 assert "thinkingEffort: effortPicker.value" in profile_settings, (
     "profile settings must serialize the selected thinking effort"
+)
+assert "ShortcutEditor {" in profile_settings
+assert "signal uiShortcutsChanged(var shortcuts)" in profile_settings
+assert "function ensureFocusedItemVisible" in profile_settings
+assert "shortcutCaptureActive: shortcutEditor.captureActive" in profile_settings
+
+window_shortcuts = (root / "ui/WindowShortcuts.qml").read_text()
+assert window_shortcuts.count("Shortcut {") == 7, (
+    "there must be exactly one window shortcut per configurable action"
+)
+shortcut_actions = (
+    "focusInput", "model", "effort", "history", "settings", "private", "newChat"
+)
+for action in shortcut_actions:
+    assert f'sequence: root.configuredSequence("{action}")' in window_shortcuts
+    assert f"signal {action}Requested()" in window_shortcuts
+assert window_shortcuts.count("context: Qt.WindowShortcut") == 7
+for literal in ("Ctrl+L", "Ctrl+K", "Ctrl+.", "Ctrl+H", "Ctrl+,", "Ctrl+Shift+P", "Ctrl+N"):
+    assert literal not in window_shortcuts, "router defaults must come from config"
+
+shortcut_capture = (root / "ui/ShortcutCapture.qml").read_text()
+assert "event.isAutoRepeat" in shortcut_capture
+assert "signal sequenceCaptured(string sequence)" in shortcut_capture
+assert "Qt.Key_Escape" in shortcut_capture and "captureCanceled" in shortcut_capture
+for modifier in ("Ctrl", "Alt", "Shift", "Meta"):
+    assert modifier in shortcut_capture
+
+shortcut_editor = (root / "ui/ShortcutEditor.qml").read_text()
+assert "ProfileModel.setUiShortcuts" in shortcut_editor
+assert "ProfileModel.resetUiShortcuts" in shortcut_editor
+assert "property bool captureActive" in shortcut_editor
+assert shortcut_editor.count("Default ") >= 7
+for literal in ("Ctrl+L", "Ctrl+K", "Ctrl+.", "Ctrl+H", "Ctrl+,", "Ctrl+Shift+P", "Ctrl+N"):
+    assert literal in shortcut_editor, f"settings must present the {literal} default"
+
+history_drawer = (root / "ui/HistoryDrawer.qml").read_text()
+for key in ("Qt.Key_Home", "Qt.Key_End", "Qt.Key_Space", "Qt.Key_Return"):
+    assert key in history_drawer, f"history is missing {key} keyboard behavior"
+assert "event.text === \"n\"" not in history_drawer, (
+    "new chat must use the configurable Ctrl+N action, not a bare letter"
 )
 assert 'type: "models.list"' in chat_surface, (
     "chat surface must request model catalogs through the bridge"

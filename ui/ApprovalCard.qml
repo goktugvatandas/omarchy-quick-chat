@@ -70,6 +70,7 @@ BorderSurface {
         text: root.detailsExpanded ? "Hide details" : "Details"
         foreground: Color.popups.text
         fontFamily: Style.font.menuFamily
+        focusable: true
         onClicked: root.detailsExpanded = !root.detailsExpanded
       }
       Item { Layout.fillWidth: true }
@@ -77,6 +78,7 @@ BorderSurface {
         text: "Deny"
         foreground: Color.popups.text
         fontFamily: Style.font.menuFamily
+        focusable: true
         onClicked: root.deny()
       }
       Button {
@@ -84,6 +86,7 @@ BorderSurface {
         foreground: Color.popups.text
         fontFamily: Style.font.menuFamily
         bordered: true
+        focusable: true
         onClicked: {
           if (root.request && root.request.approvalId)
             root.approveRequested(root.request.approvalId)

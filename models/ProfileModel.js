@@ -164,6 +164,20 @@ function setUiShortcut(state, action, value) {
   return next
 }
 
+function defaultUiShortcuts() {
+  return copy(DEFAULT_UI_SHORTCUTS)
+}
+
+function setUiShortcuts(state, shortcuts) {
+  var next = copy(state)
+  next.uiShortcuts = normalizeShortcuts(shortcuts)
+  return next
+}
+
+function resetUiShortcuts(state) {
+  return setUiShortcuts(state, defaultUiShortcuts())
+}
+
 function update(state, patch) {
   if (!patch || !patch.profileId || !patch.values) throw new Error("invalid profile patch")
   var next = copy(state)
@@ -224,6 +238,9 @@ if (typeof module !== "undefined") {
     defaults: defaults,
     setHistoryLimit: setHistoryLimit,
     setUiShortcut: setUiShortcut,
+    defaultUiShortcuts: defaultUiShortcuts,
+    setUiShortcuts: setUiShortcuts,
+    resetUiShortcuts: resetUiShortcuts,
     update: update,
     duplicate: duplicate,
     remove: remove,

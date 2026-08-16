@@ -78,12 +78,14 @@ Flow {
             text: "OCR"
             foreground: Color.popups.text
             fontFamily: Style.font.menuFamily
+            focusable: true
             onClicked: root.ocrRequested(modelData.id)
           }
           Button {
             text: "Remove"
             foreground: Color.popups.text
             fontFamily: Style.font.menuFamily
+            focusable: true
             onClicked: root.removeRequested(modelData.id)
           }
         }

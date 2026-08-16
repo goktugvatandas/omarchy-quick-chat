@@ -8,6 +8,7 @@ FocusScope {
 
   property var conversations: []
   property var profiles: []
+  property string newChatShortcut: ""
   property int selectedIndex: 0
   property bool cursorActive: false
   signal conversationSelected(string conversationId)
@@ -32,6 +33,7 @@ FocusScope {
   }
 
   function focusPage() {
+    cursorActive = conversations.length > 0
     keyTarget.forceActiveFocus()
   }
 
@@ -59,11 +61,19 @@ FocusScope {
       } else if (event.key === Qt.Key_Up || event.text === "k") {
         root.moveCursor(-1)
         event.accepted = true
-      } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-        root.activateCursor()
+      } else if (event.key === Qt.Key_Home && root.conversations.length > 0) {
+        root.cursorActive = true
+        root.selectedIndex = 0
+        conversationList.positionViewAtBeginning()
         event.accepted = true
-      } else if (event.text === "n" || event.text === "N") {
-        root.newChatRequested()
+      } else if (event.key === Qt.Key_End && root.conversations.length > 0) {
+        root.cursorActive = true
+        root.selectedIndex = root.conversations.length - 1
+        conversationList.positionViewAtEnd()
+        event.accepted = true
+      } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter
+                 || event.key === Qt.Key_Space) {
+        root.activateCursor()
         event.accepted = true
       }
     }
@@ -92,9 +102,11 @@ FocusScope {
           Button {
             iconText: "+"
             tooltipText: "New conversation"
+              + (root.newChatShortcut ? " (" + root.newChatShortcut + ")" : "")
             foreground: Color.popups.text
             fontFamily: Style.font.menuFamily
             bordered: true
+            focusable: true
             onClicked: root.newChatRequested()
           }
         }
@@ -229,6 +241,7 @@ FocusScope {
         iconText: "󰆴"
         foreground: Color.urgent
         fontFamily: Style.font.menuFamily
+        focusable: true
         onClicked: root.clearRequested()
       }
     }
