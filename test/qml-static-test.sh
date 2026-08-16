@@ -345,6 +345,11 @@ shortcut_editor = (root / "ui/ShortcutEditor.qml").read_text()
 assert "ProfileModel.setUiShortcuts" in shortcut_editor
 assert "ProfileModel.resetUiShortcuts" in shortcut_editor
 assert "property bool captureActive" in shortcut_editor
+assert "signal updateRequested(var shortcuts)" in shortcut_editor
+assert "signal shortcutsChanged" not in shortcut_editor, (
+    "a shortcuts property already owns the automatic shortcutsChanged signal"
+)
+assert "onUpdateRequested:" in profile_settings
 assert shortcut_editor.count("Default ") >= 7
 for literal in ("Ctrl+L", "Ctrl+K", "Ctrl+.", "Ctrl+H", "Ctrl+,", "Ctrl+Shift+P", "Ctrl+N"):
     assert literal in shortcut_editor, f"settings must present the {literal} default"

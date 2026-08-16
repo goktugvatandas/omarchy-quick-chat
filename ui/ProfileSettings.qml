@@ -553,7 +553,7 @@ FocusScope {
         Layout.fillWidth: true
         profileState: root.profileState
         shortcuts: root.profileState ? root.profileState.uiShortcuts : ({})
-        onShortcutsChanged: function(shortcuts) {
+        onUpdateRequested: function(shortcuts) {
           root.uiShortcutsChanged(shortcuts)
         }
       }

@@ -22,7 +22,7 @@ ColumnLayout {
     { action: "newChat", label: "New chat", hint: "Default Ctrl+N" }
   ]
 
-  signal shortcutsChanged(var shortcuts)
+  signal updateRequested(var shortcuts)
 
   function candidate(action, sequence) {
     var next = Object.assign({}, root.shortcuts || ({}))
@@ -35,7 +35,7 @@ ColumnLayout {
     try {
       var nextState = ProfileModel.setUiShortcuts(root.profileState, shortcuts)
       validationError = ""
-      shortcutsChanged(nextState.uiShortcuts)
+      updateRequested(nextState.uiShortcuts)
     } catch (error) {
       validationError = String(error && error.message ? error.message : error)
     }
@@ -46,7 +46,7 @@ ColumnLayout {
     try {
       var nextState = ProfileModel.resetUiShortcuts(root.profileState)
       validationError = ""
-      shortcutsChanged(nextState.uiShortcuts)
+      updateRequested(nextState.uiShortcuts)
     } catch (error) {
       validationError = String(error && error.message ? error.message : error)
     }
