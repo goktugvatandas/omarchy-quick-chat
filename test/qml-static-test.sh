@@ -352,6 +352,9 @@ assert "shortcutCaptureActive: shortcutEditor.captureActive" in profile_settings
 assert "function moveTabFocus(forward)" in profile_settings
 assert "root.Window.window.activeFocusItem" in profile_settings
 assert "current.nextItemInFocusChain(forward)" in profile_settings
+assert "function containsSettingsItem(item)" in profile_settings
+assert "while (next && !root.containsSettingsItem(next)" in profile_settings
+assert "forward ? nameField : saveButton" in profile_settings
 assert "Keys.priority: Keys.BeforeItem" in profile_settings
 assert "Qt.Key_Backtab" in profile_settings and "Qt.ShiftModifier" in profile_settings
 

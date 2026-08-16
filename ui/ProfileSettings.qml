@@ -172,14 +172,33 @@ FocusScope {
     }
   }
 
+  function containsSettingsItem(item) {
+    var candidate = item
+    while (candidate) {
+      if (candidate === root) return true
+      candidate = candidate.parent
+    }
+    return false
+  }
+
   function moveTabFocus(forward) {
     var current = root.Window.window ? root.Window.window.activeFocusItem : null
-    if (!current || typeof current.nextItemInFocusChain !== "function") {
-      nameField.forceActiveFocus()
+    var fallback = forward ? nameField : saveButton
+    if (!current || !root.containsSettingsItem(current)
+        || typeof current.nextItemInFocusChain !== "function") {
+      fallback.forceActiveFocus()
+      Qt.callLater(function() { root.ensureFocusedItemVisible(fallback) })
       return
     }
     var next = current.nextItemInFocusChain(forward)
-    if (!next || next === current) return
+    var steps = 0
+    while (next && !root.containsSettingsItem(next) && steps < 256) {
+      if (typeof next.nextItemInFocusChain !== "function") break
+      next = next.nextItemInFocusChain(forward)
+      steps += 1
+    }
+    if (!next || next === current || next === root
+        || !root.containsSettingsItem(next)) next = fallback
     next.forceActiveFocus()
     Qt.callLater(function() { root.ensureFocusedItemVisible(next) })
   }
@@ -750,6 +769,7 @@ FocusScope {
       }
 
       Button {
+        id: saveButton
         Layout.alignment: Qt.AlignRight
         text: "Save profile"
         iconText: "󰆓"
