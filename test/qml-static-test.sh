@@ -61,6 +61,45 @@ assert "StackLayout {" in chat_surface, (
 assert "historyOpen" not in chat_surface, (
     "history must be a focused page, not a cramped side drawer"
 )
+assert not all(label in chat_surface for label in (
+    'text: "Chat"', 'text: "History"', 'text: "Profiles"'
+)), "expanded mode must not use a redundant page tab bar"
+assert 'root.togglePage("history")' in chat_surface, (
+    "the history icon must toggle between history and chat"
+)
+assert 'root.togglePage("profiles")' in chat_surface, (
+    "the settings icon must toggle between settings and chat"
+)
+
+chat_header = (root / "ui/ChatHeader.qml").read_text()
+assert "Dropdown {" not in chat_header, (
+    "agent selection belongs beside the composer, not in the header"
+)
+assert "ToggleSwitch {" not in chat_header, (
+    "private mode must use an icon toggle instead of a switch"
+)
+assert 'tooltipText: root.privateMode' in chat_header, (
+    "the private icon must expose its current state accessibly"
+)
+
+composer = (root / "ui/Composer.qml").read_text()
+assert "HarnessModelPicker {" in composer, (
+    "the unified agent/model picker must sit beside the prompt controls"
+)
+
+harness_picker = (root / "ui/HarnessModelPicker.qml").read_text()
+assert "QQC.Popup {" in harness_picker, (
+    "the agent/model picker must use one anchored dropdown"
+)
+assert "expandedProfileId" in harness_picker, (
+    "configured harness rows must expand to reveal their models"
+)
+assert "modelDiscoveryRequested" in harness_picker, (
+    "expanding a harness must trigger live model discovery"
+)
+assert "selectionRequested" in harness_picker, (
+    "a nested model must select both its agent and model"
+)
 
 message_list = (root / "ui/MessageList.qml").read_text()
 assert "TextEdit {" in message_list and "readOnly: true" in message_list, (
@@ -77,6 +116,7 @@ themed_consumers = [
     root / "ui/AttachmentPreview.qml",
     root / "ui/ChatHeader.qml",
     root / "ui/Composer.qml",
+    root / "ui/HarnessModelPicker.qml",
     root / "ui/FormField.qml",
     root / "ui/HistoryDrawer.qml",
     root / "ui/InlineError.qml",

@@ -19,7 +19,6 @@ Item {
     { id: "pi", name: "Pi", icon: "󰚩" }
   ]
 
-  signal profileSelected(string profileId)
   signal privateChanged(bool enabled)
   signal expandRequested()
   signal historyRequested()
@@ -55,17 +54,14 @@ Item {
     anchors.verticalCenter: parent.verticalCenter
     spacing: Style.spacing.labelGap
 
-    Dropdown {
-      id: profilePicker
-      width: Math.min(parent.width, Style.space(230))
-      showLabel: false
-      foreground: Color.popups.text
-      fontFamily: Style.font.menuFamily
-      value: root.profileId
-      options: root.profiles.map(function(profile) {
-        return { value: profile.id, label: profile.name }
-      })
-      onChanged: function(value) { root.profileSelected(value) }
+    Text {
+      width: parent.width
+      text: root.activeProfile() ? root.activeProfile().name : "Quick Chat"
+      color: Color.popups.text
+      font.family: Style.font.menuFamily
+      font.pixelSize: Style.font.body
+      font.bold: true
+      elide: Text.ElideRight
     }
 
     Text {
@@ -86,38 +82,37 @@ Item {
     anchors.verticalCenter: parent.verticalCenter
     spacing: Style.spacing.sm
 
-    ToggleSwitch {
-      id: privateSwitch
-      checked: root.privateMode
+    Button {
+      iconText: root.privateMode ? "󰌾" : "󰌿"
+      tooltipText: root.privateMode
+        ? "Private conversation on" : "Private conversation off"
+      selected: root.privateMode
       foreground: Color.popups.text
-      accent: Color.accent
-      anchors.verticalCenter: parent.verticalCenter
-      onToggled: root.privateChanged(!root.privateMode)
-
-      PanelToolTip {
-        visible: privateSwitch.containsMouse
-        text: root.privateMode ? "Private conversation on" : "Private conversation off"
-        fontFamily: Style.font.menuFamily
-      }
+      fontFamily: Style.font.menuFamily
+      horizontalPadding: Style.spacing.sm
+      focusable: true
+      onClicked: root.privateChanged(!root.privateMode)
     }
 
     Button {
       iconText: "󰋚"
-      tooltipText: "History"
-      selected: root.expanded && root.activePage === "history"
+      tooltipText: root.activePage === "history" ? "Back to chat" : "History"
+      selected: root.activePage === "history"
       foreground: Color.popups.text
       fontFamily: Style.font.menuFamily
       horizontalPadding: Style.spacing.sm
+      focusable: true
       onClicked: root.historyRequested()
     }
 
     Button {
       iconText: ""
-      tooltipText: "Profiles and settings"
-      selected: root.expanded && root.activePage === "profiles"
+      tooltipText: root.activePage === "profiles" ? "Back to chat" : "Settings"
+      selected: root.activePage === "profiles"
       foreground: Color.popups.text
       fontFamily: Style.font.menuFamily
       horizontalPadding: Style.spacing.sm
+      focusable: true
       onClicked: root.settingsRequested()
     }
 
@@ -127,6 +122,7 @@ Item {
       foreground: Color.popups.text
       fontFamily: Style.font.menuFamily
       horizontalPadding: Style.spacing.sm
+      focusable: true
       onClicked: root.expandRequested()
     }
   }

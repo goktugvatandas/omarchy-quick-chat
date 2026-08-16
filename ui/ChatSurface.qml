@@ -45,6 +45,15 @@ Item {
     Qt.callLater(focusActivePage)
   }
 
+  function togglePage(page) {
+    if (activePage === page) {
+      activePage = "chat"
+      Qt.callLater(focusActivePage)
+      return
+    }
+    openPage(page)
+  }
+
   function focusActivePage() {
     if (activePage === "history") historyPage.focusPage()
     else if (activePage === "profiles") profilePage.focusPage()
@@ -64,6 +73,33 @@ Item {
     if (!nextProfileId || chatState.running) return
     profileId = nextProfileId
     chatState = ChatModel.initialState(conversationId, profileId)
+  }
+
+  function selectProfileModel(nextProfileId, modelId) {
+    if (!profileState || !nextProfileId || chatState.running) return
+    var profile = null
+    for (var index = 0; index < profileState.profiles.length; index += 1) {
+      if (profileState.profiles[index].id === nextProfileId) {
+        profile = profileState.profiles[index]
+        break
+      }
+    }
+    if (!profile) return
+
+    var nextModel = String(modelId || "")
+    var profileChanged = profileId !== nextProfileId
+    var modelChanged = String(profile.model || "") !== nextModel
+    if (!profileChanged && !modelChanged) return
+
+    profileId = nextProfileId
+    chatState = ChatModel.initialState(conversationId, profileId)
+    if (modelChanged) {
+      saveProfiles(ProfileModel.update(profileState, {
+        profileId: nextProfileId,
+        values: { model: nextModel || null }
+      }))
+    }
+    Qt.callLater(focusActivePage)
   }
 
   function activeProfile() {
@@ -97,7 +133,7 @@ Item {
     return false
   }
 
-  function requestModels(adapterId, refresh) {
+  function requestModels(adapterId, refresh, sourceProfileId) {
     if (!adapterId) return
     if (adapterId === "custom") {
       var emptyCatalogs = Object.assign({}, root.modelCatalogs)
@@ -120,7 +156,7 @@ Item {
     bridge.send({
       type: "models.list",
       requestId: requestId,
-      profileId: root.profileId,
+      profileId: sourceProfileId || root.profileId,
       adapterId: adapterId,
       refresh: Boolean(refresh)
     })
@@ -373,7 +409,7 @@ Item {
         if (!root.activeProfile()) root.profileId = root.profileState.selectedId
       } else if ((event.type === "complete" || event.type === "error")
                  && root.finishModelRequest(event)) {
-        // Model catalog events belong to profile settings, not the transcript.
+        // Model catalog events belong to pickers, not the transcript.
       } else if (event.type === "complete" && root.contextRequests[event.requestId]) {
         if (event.data.attachment)
           root.attachments = root.attachments.concat([event.data.attachment])
@@ -414,52 +450,15 @@ Item {
       privateMode: root.privateMode
       expanded: root.expanded
       activePage: root.activePage
-      onProfileSelected: function(value) { root.selectProfile(value) }
       onPrivateChanged: function(value) { root.privateMode = value }
       onExpandRequested: root.toggleExpanded()
-      onHistoryRequested: root.openPage("history")
-      onSettingsRequested: root.openPage("profiles")
+      onHistoryRequested: root.togglePage("history")
+      onSettingsRequested: root.togglePage("profiles")
     }
 
     PanelSeparator {
       Layout.fillWidth: true
       foreground: Color.popups.text
-    }
-
-    RowLayout {
-      Layout.fillWidth: true
-      visible: root.expanded
-      spacing: Style.spacing.sm
-
-      Button {
-        Layout.fillWidth: true
-        text: "Chat"
-        iconText: "󰭻"
-        selected: root.activePage === "chat"
-        foreground: Color.popups.text
-        fontFamily: Style.font.menuFamily
-        onClicked: root.openPage("chat")
-      }
-
-      Button {
-        Layout.fillWidth: true
-        text: "History"
-        iconText: "󰋚"
-        selected: root.activePage === "history"
-        foreground: Color.popups.text
-        fontFamily: Style.font.menuFamily
-        onClicked: root.openPage("history")
-      }
-
-      Button {
-        Layout.fillWidth: true
-        text: "Profiles"
-        iconText: ""
-        selected: root.activePage === "profiles"
-        foreground: Color.popups.text
-        fontFamily: Style.font.menuFamily
-        onClicked: root.openPage("profiles")
-      }
     }
 
     StackLayout {
@@ -512,8 +511,19 @@ Item {
           Layout.fillWidth: true
           running: root.chatState.running
           attachmentCount: root.attachments.length
+          profileId: root.profileId
+          profiles: root.profileState ? root.profileState.profiles : []
+          modelCatalogs: root.modelCatalogs
+          modelCatalogErrors: root.modelCatalogErrors
+          modelRequests: root.modelRequests
           onSendRequested: function(prompt) { root.sendPrompt(prompt) }
           onContextRequested: function(mode) { root.requestContext(mode) }
+          onAgentModelSelected: function(nextProfileId, modelId) {
+            root.selectProfileModel(nextProfileId, modelId)
+          }
+          onModelDiscoveryRequested: function(nextProfileId, adapterId, refresh) {
+            root.requestModels(adapterId, refresh, nextProfileId)
+          }
           onStopRequested: bridge.send({
             type: "cancel",
             requestId: root.chatState.activeRequestId
