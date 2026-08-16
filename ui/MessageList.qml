@@ -22,13 +22,14 @@ ScrollView {
         ? Color.menu.selectedBackground
         : "transparent"
 
-      Text {
+      TextEdit {
         id: messageText
         anchors.fill: parent
         anchors.margins: Style.spacing.controlPaddingY
         text: modelData.text || ""
         textFormat: Text.PlainText
-        wrapMode: Text.Wrap
+        wrapMode: TextEdit.Wrap
+        readOnly: true
         color: Color.menu.text
         font.family: Style.font.menuFamily
         font.pixelSize: Style.font.body

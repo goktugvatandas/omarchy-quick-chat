@@ -11,7 +11,6 @@ Flow {
   signal ocrRequested(string attachmentId)
 
   spacing: Style.space(6)
-  implicitHeight: childrenRect.height
 
   Repeater {
     model: root.attachments

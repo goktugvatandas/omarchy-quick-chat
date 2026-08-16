@@ -29,6 +29,16 @@ assert 'import ".."' in chat_surface, (
     "chat surface must import root-level plugin components"
 )
 
+message_list = (root / "ui/MessageList.qml").read_text()
+assert "TextEdit {" in message_list and "readOnly: true" in message_list, (
+    "message text must use a selectable read-only text type"
+)
+
+attachment_preview = (root / "ui/AttachmentPreview.qml").read_text()
+assert "implicitHeight: childrenRect.height" not in attachment_preview, (
+    "Flow implicitHeight is read-only in the supported Qt runtime"
+)
+
 service = (root / "Service.qml").read_text()
 shortcut = (root / "ShortcutDelegate.qml").read_text()
 assert "watchChanges: true" in service, "service must watch profile configuration"
