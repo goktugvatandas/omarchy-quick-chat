@@ -228,6 +228,11 @@ assert composer.count("focusable: true") >= 6, (
     "context, stop, and send controls must all be reachable by Tab"
 )
 
+themed_text_area = (root / "ui/ThemedTextArea.qml").read_text()
+assert "tabChangesFocus: true" in themed_text_area, (
+    "multiline settings fields must not trap keyboard focus"
+)
+
 harness_picker = (root / "ui/HarnessModelPicker.qml").read_text()
 assert "QQC.Popup {" in harness_picker, (
     "the agent/model picker must use one anchored dropdown"

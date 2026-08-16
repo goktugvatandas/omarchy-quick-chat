@@ -22,6 +22,7 @@ Controls.TextArea {
   selectionColor: Style.selectionFillFor(foreground, accent)
   selectedTextColor: foreground
   selectByMouse: true
+  tabChangesFocus: true
   leftPadding: Style.spacing.controlPaddingX + Border.left(controlBorder)
   rightPadding: Style.spacing.controlPaddingX + Border.right(controlBorder)
   topPadding: Style.spacing.inputPaddingY + Border.top(controlBorder)
