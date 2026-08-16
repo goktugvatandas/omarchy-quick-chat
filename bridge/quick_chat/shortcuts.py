@@ -14,6 +14,7 @@ from .models import Config
 MODIFIER_ORDER = ("SUPER", "ALT", "CTRL", "SHIFT")
 MODIFIER_BITS = {"SHIFT": 1, "CTRL": 4, "ALT": 8, "SUPER": 64}
 KEY_PATTERN = re.compile(r"[A-Z0-9_]+\Z")
+LUA_DESCRIPTION_PREFIX = "Quick Chat: "
 
 
 def _default_runner(argv, **kwargs):
@@ -64,12 +65,96 @@ def _target(profile_id: str) -> str:
     return f"community.quick-chat:profile-{profile_id}"
 
 
-def _owned(binding: dict[str, object], profile_id: str | None = None) -> bool:
+def _description(profile_name: str) -> str:
+    return f"{LUA_DESCRIPTION_PREFIX}{profile_name}"
+
+
+def _owned(
+    binding: dict[str, object],
+    profile_id: str | None = None,
+    profile_name: str | None = None,
+) -> bool:
     argument = binding.get("arg")
     expected = _target(profile_id) if profile_id is not None else "community.quick-chat:profile-"
-    return binding.get("dispatcher") == "global" and isinstance(argument, str) and (
+    if binding.get("dispatcher") == "global" and isinstance(argument, str) and (
         argument == expected if profile_id is not None else argument.startswith(expected)
+    ):
+        return True
+    description = binding.get("description")
+    if binding.get("dispatcher") != "__lua" or not isinstance(description, str):
+        return False
+    if profile_name is not None:
+        return description == _description(profile_name)
+    return description.startswith(LUA_DESCRIPTION_PREFIX)
+
+
+def _run(runner: Callable, argv: list[str]):
+    return runner(
+        argv,
+        capture_output=True,
+        text=True,
+        timeout=3,
+        check=False,
+        shell=False,
     )
+
+
+def _using_lua(runner: Callable) -> bool:
+    result = _run(runner, ["hyprctl", "eval", "return true"])
+    return result.returncode == 0 and (result.stdout or "").strip() == "ok"
+
+
+def _lua_literal(value: str) -> str:
+    return json.dumps(value, ensure_ascii=False)
+
+
+def _lua_keys(shortcut: str) -> str:
+    modifiers, key = shortcut.split(", ", 1)
+    return " + ".join([*modifiers.split(), key])
+
+
+def _require_ok(result, fallback: str) -> None:
+    output = (result.stdout or "").strip()
+    if result.returncode == 0 and output == "ok":
+        return
+    raise RuntimeError((result.stderr or "").strip() or output or fallback)
+
+
+def _unbind(runner: Callable, shortcut: str, *, using_lua: bool) -> None:
+    if using_lua:
+        code = f"hl.unbind({_lua_literal(_lua_keys(shortcut))})"
+        result = _run(runner, ["hyprctl", "eval", code])
+    else:
+        result = _run(
+            runner,
+            ["hyprctl", "keyword", "unbind", shortcut.replace(", ", ",")],
+        )
+    _require_ok(result, "unable to remove shortcut")
+
+
+def _bind(
+    runner: Callable,
+    shortcut: str,
+    profile_id: str,
+    profile_name: str,
+    *,
+    using_lua: bool,
+) -> None:
+    if using_lua:
+        code = (
+            f"hl.bind({_lua_literal(_lua_keys(shortcut))}, "
+            f"hl.dsp.global({_lua_literal(_target(profile_id))}), "
+            f"{{ description = {_lua_literal(_description(profile_name))} }})"
+        )
+        result = _run(runner, ["hyprctl", "eval", code])
+    else:
+        modifiers, key = shortcut.split(", ", 1)
+        description = (
+            f"{modifiers},{key},Quick Chat: {profile_name},"
+            f"global,{_target(profile_id)}"
+        )
+        result = _run(runner, ["hyprctl", "keyword", "bindd", description])
+    _require_ok(result, "unable to add shortcut")
 
 
 @dataclass(frozen=True)
@@ -90,19 +175,13 @@ def sync_shortcuts(
     config: Config,
     runner: Callable = _default_runner,
 ) -> SyncResult:
-    result = runner(
-        ["hyprctl", "-j", "binds"],
-        capture_output=True,
-        text=True,
-        timeout=3,
-        check=False,
-        shell=False,
-    )
+    result = _run(runner, ["hyprctl", "-j", "binds"])
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or "unable to read Hyprland bindings")
     bindings = json.loads(result.stdout or "[]")
     if not isinstance(bindings, list):
         raise RuntimeError("Hyprland bindings response is invalid")
+    using_lua = _using_lua(runner)
 
     desired: dict[str, tuple[str, str]] = {}
     for profile in config.profiles:
@@ -115,13 +194,22 @@ def sync_shortcuts(
     conflicts: list[ShortcutConflict] = []
     applied: list[str] = []
     removed: list[str] = []
+    profile_by_description = {
+        _description(profile.name): profile.id for profile in config.profiles
+    }
 
     for binding in bindings:
         if not isinstance(binding, dict) or not _owned(binding):
             continue
         shortcut = _binding_shortcut(binding)
-        argument = str(binding.get("arg"))
-        profile_id = argument.removeprefix("community.quick-chat:profile-")
+        if binding.get("dispatcher") == "global":
+            argument = str(binding.get("arg"))
+            profile_id = argument.removeprefix("community.quick-chat:profile-")
+        else:
+            profile_id = profile_by_description.get(
+                str(binding.get("description")),
+                str(binding.get("description") or "unknown"),
+            )
         expected = desired.get(profile_id)
         if shortcut and (expected is None or expected[0] != shortcut):
             same_chord = [
@@ -132,14 +220,7 @@ def sync_shortcuts(
                 and _binding_shortcut(other) == shortcut
             ]
             if not same_chord:
-                runner(
-                    ["hyprctl", "keyword", "unbind", shortcut.replace(", ", ",")],
-                    capture_output=True,
-                    text=True,
-                    timeout=3,
-                    check=False,
-                    shell=False,
-                )
+                _unbind(runner, shortcut, using_lua=using_lua)
                 removed.append(profile_id)
 
     for profile_id, (shortcut, profile_name) in desired.items():
@@ -148,9 +229,16 @@ def sync_shortcuts(
             for binding in bindings
             if isinstance(binding, dict) and _binding_shortcut(binding) == shortcut
         ]
-        if any(_owned(binding, profile_id) for binding in existing):
+        if any(_owned(binding, profile_id, profile_name) for binding in existing):
             continue
-        foreign = next((binding for binding in existing if not _owned(binding, profile_id)), None)
+        foreign = next(
+            (
+                binding
+                for binding in existing
+                if not _owned(binding, profile_id, profile_name)
+            ),
+            None,
+        )
         if foreign is not None:
             owner = str(
                 foreign.get("description")
@@ -160,18 +248,13 @@ def sync_shortcuts(
             )
             conflicts.append(ShortcutConflict(profile_id, shortcut, owner))
             continue
-        modifiers, key = shortcut.split(", ", 1)
-        description = f"{modifiers},{key},Quick Chat: {profile_name},global,{_target(profile_id)}"
-        bind_result = runner(
-            ["hyprctl", "keyword", "bindd", description],
-            capture_output=True,
-            text=True,
-            timeout=3,
-            check=False,
-            shell=False,
+        _bind(
+            runner,
+            shortcut,
+            profile_id,
+            profile_name,
+            using_lua=using_lua,
         )
-        if bind_result.returncode != 0:
-            raise RuntimeError(bind_result.stderr.strip() or "unable to add shortcut")
         applied.append(profile_id)
 
     return SyncResult(tuple(conflicts), tuple(applied), tuple(removed))

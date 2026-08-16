@@ -7,8 +7,9 @@ from bridge.quick_chat.shortcuts import normalize_shortcut, sync_shortcuts
 
 
 class FakeHyprctl:
-    def __init__(self, binds=()):
+    def __init__(self, binds=(), *, lua=False):
         self.binds = list(binds)
+        self.lua = lua
         self.calls = []
 
     def __call__(self, argv, **kwargs):
@@ -16,6 +17,9 @@ class FakeHyprctl:
         self.calls.append(command)
         if command == ["hyprctl", "-j", "binds"]:
             return subprocess.CompletedProcess(command, 0, json.dumps(self.binds), "")
+        if command == ["hyprctl", "eval", "return true"]:
+            output = "ok" if self.lua else "eval can't work with legacy parsers"
+            return subprocess.CompletedProcess(command, 0, output, "")
         return subprocess.CompletedProcess(command, 0, "ok", "")
 
 
@@ -57,6 +61,77 @@ class ShortcutTests(unittest.TestCase):
         bind_call = runner.calls[-1]
         self.assertEqual(bind_call[:3], ["hyprctl", "keyword", "bindd"])
         self.assertIn("community.quick-chat:profile-work", bind_call[3])
+
+    def test_lua_config_adds_exact_global_target_through_eval(self):
+        work = Profile(
+            id="work",
+            name="Work",
+            adapter_id="codex",
+            shortcut="SUPER CTRL, K",
+        )
+        config = Config(profiles=(work,), selected_profile_id="work")
+        runner = FakeHyprctl(lua=True)
+
+        result = sync_shortcuts(config, runner)
+
+        self.assertEqual(result.conflicts, ())
+        self.assertEqual(runner.calls[-1], [
+            "hyprctl",
+            "eval",
+            'hl.bind("SUPER + CTRL + K", '
+            'hl.dsp.global("community.quick-chat:profile-work"), '
+            '{ description = "Quick Chat: Work" })',
+        ])
+
+    def test_existing_lua_binding_is_owned_by_description(self):
+        work = Profile(
+            id="work",
+            name="Work",
+            adapter_id="codex",
+            shortcut="SUPER CTRL, K",
+        )
+        config = Config(profiles=(work,), selected_profile_id="work")
+        runner = FakeHyprctl([{
+            "modmask": 68,
+            "key": "K",
+            "dispatcher": "__lua",
+            "arg": "238",
+            "description": "Quick Chat: Work",
+        }], lua=True)
+
+        result = sync_shortcuts(config, runner)
+
+        self.assertEqual(result.conflicts, ())
+        self.assertEqual(result.applied, ())
+        self.assertFalse(any(
+            command[:2] == ["hyprctl", "eval"] and "hl.bind" in command[-1]
+            for command in runner.calls
+        ))
+
+    def test_stale_lua_binding_is_removed_before_rebinding(self):
+        work = Profile(
+            id="work",
+            name="Work",
+            adapter_id="codex",
+            shortcut="SUPER CTRL, K",
+        )
+        config = Config(profiles=(work,), selected_profile_id="work")
+        runner = FakeHyprctl([{
+            "modmask": 72,
+            "key": "C",
+            "dispatcher": "__lua",
+            "arg": "237",
+            "description": "Quick Chat: Work",
+        }], lua=True)
+
+        result = sync_shortcuts(config, runner)
+
+        self.assertEqual(result.removed, ("work",))
+        self.assertIn(
+            ["hyprctl", "eval", 'hl.unbind("SUPER + ALT + C")'],
+            runner.calls,
+        )
+        self.assertIn("work", result.applied)
 
     def test_modmask_is_understood_for_conflict_detection(self):
         runner = FakeHyprctl([{
