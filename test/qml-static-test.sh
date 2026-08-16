@@ -29,8 +29,14 @@ assert not re.search(
 assert "implicitWidth:" in menu and "implicitHeight:" in menu, (
     "Quick Chat must use a card-sized popup surface"
 )
-assert "HyprlandFocusGrab" in menu, (
-    "outside-click dismissal must not require a full-screen MouseArea"
+assert "WlrKeyboardFocus.Exclusive" not in menu, (
+    "Quick Chat must not monopolize keyboard focus"
+)
+assert "WlrKeyboardFocus.OnDemand" in menu, (
+    "Quick Chat must accept focus only when the user interacts with it"
+)
+assert "HyprlandFocusGrab" not in menu, (
+    "Quick Chat must stay open without preventing focus on other windows"
 )
 
 bridge = (root / "BridgeClient.qml").read_text()
@@ -95,6 +101,22 @@ for component in ("ThemedTextArea.qml", "ThemedScrollView.qml"):
     assert "Color.popups" in source and "Style." in source, (
         f"{component} must bind to the live Omarchy theme"
     )
+
+scroll_view = (root / "ui/ThemedScrollView.qml").read_text()
+assert "Controls.ScrollBar.AlwaysOff" in scroll_view, (
+    "panel scroll views must not expose a meaningless horizontal scrollbar"
+)
+
+profile_settings = (root / "ui/ProfileSettings.qml").read_text()
+assert "SearchableDropdown" in profile_settings, (
+    "profile models must be selectable from a searchable discovered catalog"
+)
+assert "modelDiscoveryRequested" in profile_settings, (
+    "profile settings must expose model discovery and refresh"
+)
+assert 'type: "models.list"' in chat_surface, (
+    "chat surface must request model catalogs through the bridge"
+)
 
 service = (root / "Service.qml").read_text()
 shortcut = (root / "ShortcutDelegate.qml").read_text()

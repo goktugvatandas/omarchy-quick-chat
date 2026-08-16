@@ -6,6 +6,7 @@ Controls.ScrollView {
   id: root
 
   clip: true
+  contentWidth: availableWidth
 
   Controls.ScrollBar.vertical: Controls.ScrollBar {
     id: verticalBar
@@ -25,7 +26,7 @@ Controls.ScrollView {
 
   Controls.ScrollBar.horizontal: Controls.ScrollBar {
     id: horizontalBar
-    policy: Controls.ScrollBar.AsNeeded
+    policy: Controls.ScrollBar.AlwaysOff
 
     contentItem: Rectangle {
       implicitWidth: Style.space(40)

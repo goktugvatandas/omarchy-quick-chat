@@ -43,9 +43,11 @@ disabled. Current Omarchy releases render all stock root rows before extension
 rows, so Quick Chat is the first custom row. The planned relative-order hook
 will default it immediately after Apps and let users choose another position.
 
-The popup itself has no full-screen backdrop or click-blocking overlay. Its
-surface, controls, state fills, borders, corners, spacing, type scale, and font
-family bind to Omarchy's live theme tokens and update with the active theme.
+The popup itself has no full-screen backdrop or click-blocking overlay. It
+requests keyboard focus only when interacted with, so it can stay visible while
+you focus and use another window. Its surface, controls, state fills, borders,
+corners, spacing, type scale, and font family bind to Omarchy's live theme
+tokens and update with the active theme.
 
 The header switches profiles and toggles private mode. History keeps the 20
 most recently updated conversations by default. Set any positive finite limit
@@ -76,6 +78,13 @@ directory policy, allowed context providers, permission policy, retention,
 private default, advanced arguments, and shortcut. Fixed working directories
 must exist. Active-project profiles resolve `/proc/<active-pid>/cwd` without a
 shell and fall back visibly to home when unavailable.
+
+The Model field discovers each harness's catalog through its native CLI and
+opens it in Omarchy's searchable picker. Refresh reruns discovery; Custom model
+ID keeps manual configuration available. Claude Code exposes its supported
+`sonnet`, `opus`, and `haiku` aliases because its CLI has no catalog command.
+Catalog calls use fixed argument arrays, bounded output, and short timeouts, and
+their results are cached for the bridge lifetime.
 
 Every built-in process adapter uses read-only or plan behavior. Quick Chat never
 passes force, yolo, full-auto, dangerously-skip-permissions, or equivalent

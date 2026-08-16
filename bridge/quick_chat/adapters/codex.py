@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .base import AdapterContext, AdapterEvent, Capabilities, Invocation
 from .process_base import ProcessAdapterBase
+from ..model_discovery import discover_codex_models
 
 
 class CodexAdapter(ProcessAdapterBase):
@@ -21,6 +22,9 @@ class CodexAdapter(ProcessAdapterBase):
         read_only_enforced=True,
         relayable_approvals=False,
     )
+
+    def discover_models(self, cwd: Path | None = None):
+        return discover_codex_models(cwd)
 
     def start(self, context: AdapterContext) -> Invocation:
         arguments = ["codex", "exec"]

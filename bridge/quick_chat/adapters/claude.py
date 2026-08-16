@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 
-from .base import AdapterContext, AdapterEvent, Capabilities, Invocation
+from .base import AdapterContext, AdapterEvent, Capabilities, Invocation, ModelOption
 from .process_base import ProcessAdapterBase
 
 
@@ -24,6 +25,13 @@ class ClaudeAdapter(ProcessAdapterBase):
     def __init__(self) -> None:
         super().__init__()
         self._saw_stream_delta = False
+
+    def discover_models(self, cwd: Path | None = None) -> tuple[ModelOption, ...]:
+        return (
+            ModelOption("sonnet", "Sonnet", "Claude Code model alias"),
+            ModelOption("opus", "Opus", "Claude Code model alias"),
+            ModelOption("haiku", "Haiku", "Claude Code model alias"),
+        )
 
     def start(self, context: AdapterContext) -> Invocation:
         arguments = ["claude", "-p"]

@@ -1,5 +1,4 @@
 import Quickshell
-import Quickshell.Hyprland
 import Quickshell.Wayland
 import QtQuick
 import qs.Commons
@@ -58,7 +57,7 @@ Item {
     color: "transparent"
     WlrLayershell.namespace: "community-quick-chat"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
     exclusionMode: ExclusionMode.Ignore
 
     BorderSurface {
@@ -95,9 +94,4 @@ Item {
     }
   }
 
-  HyprlandFocusGrab {
-    active: root.opened && panel.visible
-    windows: [panel]
-    onCleared: if (root.opened) root.dismiss()
-  }
 }

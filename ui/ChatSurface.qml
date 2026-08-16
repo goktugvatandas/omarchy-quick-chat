@@ -24,6 +24,9 @@ Item {
   property var adapterStates: []
   property var attachments: []
   property var contextRequests: ({})
+  property var modelCatalogs: ({})
+  property var modelCatalogErrors: ({})
+  property var modelRequests: ({})
   property string pendingPrompt: ""
   property var pendingApproval: null
   property string pendingClipboard: ""
@@ -77,6 +80,70 @@ Item {
     historyRequestId = newRequestId()
     bridge.send({ type: "profiles", requestId: profilesRequestId })
     bridge.send({ type: "history.list", requestId: historyRequestId })
+  }
+
+  function modelsFor(adapterId) {
+    return root.modelCatalogs[adapterId] || []
+  }
+
+  function modelErrorFor(adapterId) {
+    return root.modelCatalogErrors[adapterId] || ""
+  }
+
+  function modelsLoadingFor(adapterId) {
+    for (var requestId in root.modelRequests) {
+      if (root.modelRequests[requestId] === adapterId) return true
+    }
+    return false
+  }
+
+  function requestModels(adapterId, refresh) {
+    if (!adapterId) return
+    if (adapterId === "custom") {
+      var emptyCatalogs = Object.assign({}, root.modelCatalogs)
+      emptyCatalogs[adapterId] = []
+      root.modelCatalogs = emptyCatalogs
+      return
+    }
+    if (root.modelsLoadingFor(adapterId)) return
+    if (!refresh && root.modelCatalogs[adapterId] !== undefined) return
+
+    var requestId = root.newRequestId()
+    var requests = Object.assign({}, root.modelRequests)
+    requests[requestId] = adapterId
+    root.modelRequests = requests
+
+    var errors = Object.assign({}, root.modelCatalogErrors)
+    errors[adapterId] = ""
+    root.modelCatalogErrors = errors
+
+    bridge.send({
+      type: "models.list",
+      requestId: requestId,
+      profileId: root.profileId,
+      adapterId: adapterId,
+      refresh: Boolean(refresh)
+    })
+  }
+
+  function finishModelRequest(event) {
+    var adapterId = root.modelRequests[event.requestId]
+    if (!adapterId) return false
+
+    var requests = Object.assign({}, root.modelRequests)
+    delete requests[event.requestId]
+    root.modelRequests = requests
+
+    if (event.type === "complete") {
+      var catalogs = Object.assign({}, root.modelCatalogs)
+      catalogs[adapterId] = event.data.models || []
+      root.modelCatalogs = catalogs
+    } else {
+      var errors = Object.assign({}, root.modelCatalogErrors)
+      errors[adapterId] = event.data.message || "Model discovery failed."
+      root.modelCatalogErrors = errors
+    }
+    return true
   }
 
   function loadConversation(identifier) {
@@ -304,6 +371,9 @@ Item {
       } else if (event.type === "complete" && event.requestId === root.profileSaveRequestId) {
         root.profileState = ProfileModel.normalize(event.data.config)
         if (!root.activeProfile()) root.profileId = root.profileState.selectedId
+      } else if ((event.type === "complete" || event.type === "error")
+                 && root.finishModelRequest(event)) {
+        // Model catalog events belong to profile settings, not the transcript.
       } else if (event.type === "complete" && root.contextRequests[event.requestId]) {
         if (event.data.attachment)
           root.attachments = root.attachments.concat([event.data.attachment])
@@ -464,7 +534,13 @@ Item {
         id: profilePage
         profileState: root.profileState
         activeProfile: root.activeProfile()
+        modelOptions: root.modelsFor(editingAdapterId)
+        modelsLoading: root.modelsLoadingFor(editingAdapterId)
+        modelsError: root.modelErrorFor(editingAdapterId)
         shortcutError: root.service ? root.service.lastError : ""
+        onModelDiscoveryRequested: function(adapterId, refresh) {
+          root.requestModels(adapterId, refresh)
+        }
         onHistoryLimitChanged: function(value) {
           root.saveProfiles(ProfileModel.setHistoryLimit(root.profileState, value))
         }

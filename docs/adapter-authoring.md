@@ -1,8 +1,8 @@
 # Adapter authoring
 
 An adapter translates one CLI into Quick Chat's normalized event model. It
-provides an immutable `id`, `Capabilities`, `detect()`, `start(context)`, and
-`parse_event(event)`.
+provides an immutable `id`, `Capabilities`, `detect()`,
+`discover_models(cwd)`, `start(context)`, and `parse_event(event)`.
 
 ## Detection and capabilities
 
@@ -14,6 +14,13 @@ images, enforced read-only behavior, and relayable approvals.
 New process adapters must ship with `relayable_approvals=false` until a stable,
 tested bidirectional protocol exists. A tool request that cannot be relayed is
 denied, never guessed or auto-approved.
+
+`discover_models(cwd)` returns immutable `ModelOption` values. Prefer the CLI's
+native, non-interactive catalog command. Run a fixed argument tuple with
+`shell=False`, cap time and output, strip terminal control sequences, and never
+surface raw stderr in the UI. If the CLI has no catalog operation, expose only
+documented aliases or return an empty tuple so manual model entry remains
+available.
 
 ## Invocation
 

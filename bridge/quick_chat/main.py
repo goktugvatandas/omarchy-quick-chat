@@ -20,6 +20,7 @@ from .context.omarchy import OmarchyQueryProvider
 from .context.selection import SelectionProvider
 from .history import HistoryStore
 from .menu import install_menu_entry
+from .model_discovery import ModelDiscoveryError
 from .models import Config, Conversation, Message
 from .paths import PathSet
 from .protocol import Event, MAX_REQUEST_BYTES, ProtocolError, Request
@@ -84,6 +85,34 @@ def _handle_local_request(
         config_store.save(updated)
         events.append(Event("complete", request.request_id, {
             "config": updated.to_dict(),
+        }))
+        return events
+    if request.type == "models.list":
+        adapter_id = request.adapter_id or ""
+        if adapter_id == "custom":
+            events.append(Event("complete", request.request_id, {
+                "adapterId": adapter_id,
+                "models": [],
+            }))
+            return events
+        if registry is None:
+            raise ProtocolError("model discovery is unavailable", "model_discovery_failed")
+
+        cwd = Path.home()
+        profile = config.profile(request.profile_id or "")
+        if profile is not None and profile.working_directory_strategy == "fixed":
+            candidate = Path(profile.working_directory or "").expanduser()
+            if candidate.is_dir():
+                cwd = candidate.resolve()
+        try:
+            models = registry.models(adapter_id, cwd, refresh=request.refresh)
+        except KeyError as error:
+            raise ProtocolError("adapter was not found", "adapter_not_found") from error
+        except ModelDiscoveryError as error:
+            raise ProtocolError(str(error), "model_discovery_failed") from error
+        events.append(Event("complete", request.request_id, {
+            "adapterId": adapter_id,
+            "models": [model.to_dict() for model in models],
         }))
         return events
     if request.type == "history.list":

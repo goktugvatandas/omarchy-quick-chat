@@ -20,6 +20,7 @@ REQUEST_TYPES = frozenset({
     "approve",
     "deny",
     "probe",
+    "models.list",
     "profiles",
     "profiles.save",
     "history.list",
@@ -100,10 +101,12 @@ class Request:
     request_id: str
     conversation_id: str | None = None
     profile_id: str | None = None
+    adapter_id: str | None = None
     prompt: str | None = None
     attachments: tuple[Attachment, ...] = ()
     private: bool = False
     confirm: bool = False
+    refresh: bool = False
     mode: str | None = None
     attachment_id: str | None = None
     query: str | None = None
@@ -130,6 +133,7 @@ class Request:
                 "conversationId", value.get("conversationId")
             )
             profile_id = require_optional_string("profileId", value.get("profileId"))
+            adapter_id = require_optional_string("adapterId", value.get("adapterId"))
             prompt = require_optional_string("prompt", value.get("prompt"))
             mode = require_optional_string("mode", value.get("mode"))
             attachment_id = require_optional_string(
@@ -146,6 +150,9 @@ class Request:
         confirm = value.get("confirm", False)
         if not isinstance(confirm, bool):
             raise ProtocolError("confirm must be a boolean")
+        refresh = value.get("refresh", False)
+        if not isinstance(refresh, bool):
+            raise ProtocolError("refresh must be a boolean")
         raw_configuration = value.get("config")
         if raw_configuration is not None and not isinstance(raw_configuration, dict):
             raise ProtocolError("config must be an object")
@@ -170,16 +177,23 @@ class Request:
                     raise ProtocolError(str(error)) from error
             if not isinstance(prompt, str):
                 raise ProtocolError("prompt must be a string")
+        if request_type == "models.list":
+            try:
+                require_identifier("adapterId", adapter_id)
+            except ValueError as error:
+                raise ProtocolError(str(error)) from error
 
         return cls(
             type=request_type,
             request_id=request_id,
             conversation_id=conversation_id,
             profile_id=profile_id,
+            adapter_id=adapter_id,
             prompt=prompt,
             attachments=attachments,
             private=private,
             confirm=confirm,
+            refresh=refresh,
             mode=mode,
             attachment_id=attachment_id,
             query=query,

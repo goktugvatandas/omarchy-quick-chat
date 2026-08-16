@@ -20,6 +20,28 @@ class Capabilities:
 
 
 @dataclass(frozen=True)
+class ModelOption:
+    id: str
+    label: str
+    description: str = ""
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.id, str) or not self.id.strip():
+            raise ValueError("model id must be a non-empty string")
+        if not isinstance(self.label, str) or not self.label.strip():
+            raise ValueError("model label must be a non-empty string")
+        if not isinstance(self.description, str):
+            raise ValueError("model description must be a string")
+
+    def to_dict(self) -> dict[str, str]:
+        return {
+            "id": self.id,
+            "label": self.label,
+            "description": self.description,
+        }
+
+
+@dataclass(frozen=True)
 class Invocation:
     argv: tuple[str, ...]
     cwd: Path
@@ -59,6 +81,8 @@ class Adapter(Protocol):
     capabilities: Capabilities
 
     def detect(self) -> dict[str, object]: ...
+
+    def discover_models(self, cwd: Path | None = None) -> tuple[ModelOption, ...]: ...
 
     def start(self, context: AdapterContext) -> Invocation: ...
 

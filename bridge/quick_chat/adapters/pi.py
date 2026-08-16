@@ -8,6 +8,7 @@ from pathlib import Path
 from ..paths import PathSet
 from .base import AdapterContext, AdapterEvent, Capabilities, Invocation
 from .json_process import JsonProcessAdapter
+from ..model_discovery import discover_command_models
 
 
 class PiAdapter(JsonProcessAdapter):
@@ -19,6 +20,9 @@ class PiAdapter(JsonProcessAdapter):
         super().__init__()
         self.state_dir = state_dir or PathSet.from_env().state_dir / "pi-sessions"
         self._private_session_path: Path | None = None
+
+    def discover_models(self, cwd: Path | None = None):
+        return discover_command_models(("pi", "--list-models"), "pi", cwd)
 
     def _session_path(self, session_id: str | None, private: bool = False) -> Path:
         if private:

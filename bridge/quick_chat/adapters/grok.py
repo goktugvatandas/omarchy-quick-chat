@@ -2,14 +2,22 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from .base import AdapterContext, AdapterEvent, Capabilities, Invocation
 from .json_process import JsonProcessAdapter
+from ..model_discovery import discover_command_models
 
 
 class GrokAdapter(JsonProcessAdapter):
     id = "grok"
     executable = "grok"
     _capabilities = Capabilities(True, True, True, False, True, False)
+
+    def discover_models(self, cwd: Path | None = None):
+        return discover_command_models(
+            ("grok", "--no-auto-update", "models"), "grok", cwd
+        )
 
     def acp_argv(self) -> tuple[str, ...]:
         return ("grok", "agent", "stdio")

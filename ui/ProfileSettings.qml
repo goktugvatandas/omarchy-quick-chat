@@ -8,11 +8,17 @@ FocusScope {
 
   property var profileState: null
   property var activeProfile: null
+  property var modelOptions: []
+  property bool modelsLoading: false
+  property string modelsError: ""
   property string shortcutError: ""
+  property bool manualModelEntry: false
+  readonly property string editingAdapterId: adapterPicker.value
   signal historyLimitChanged(var value)
   signal profilePatchRequested(var values)
   signal duplicateRequested()
   signal removeRequested()
+  signal modelDiscoveryRequested(string adapterId, bool refresh)
 
   function focusPage() {
     settingsScroll.forceActiveFocus()
@@ -23,7 +29,9 @@ FocusScope {
     nameField.text = activeProfile.name || ""
     iconField.text = activeProfile.icon || ""
     adapterPicker.value = activeProfile.adapterId || "codex"
-    modelField.text = activeProfile.model || ""
+    modelPicker.value = activeProfile.model || ""
+    customModelField.text = modelPicker.value
+    manualModelEntry = false
     instructionsField.text = activeProfile.systemInstructions || ""
     directoryStrategy.value = activeProfile.workingDirectoryStrategy || "home"
     directoryField.text = activeProfile.workingDirectory || ""
@@ -41,6 +49,36 @@ FocusScope {
     customReadOnly.text = (activeProfile.customReadOnlyArgs || []).join("\n")
     customOutput.value = activeProfile.customOutput || "plain"
     transportPicker.value = activeProfile.transport || "process"
+    Qt.callLater(function() {
+      root.modelDiscoveryRequested(adapterPicker.value, false)
+    })
+  }
+
+  function searchableModelOptions() {
+    var options = [{
+      value: "",
+      label: "CLI default",
+      description: "Use the harness default model"
+    }]
+    for (var index = 0; index < root.modelOptions.length; index += 1) {
+      var model = root.modelOptions[index]
+      options.push({
+        value: String(model.id || ""),
+        label: String(model.label || model.id || ""),
+        description: String(model.description || "")
+      })
+    }
+    return options
+  }
+
+  function toggleManualModelEntry() {
+    if (!manualModelEntry)
+      customModelField.text = modelPicker.value
+    manualModelEntry = !manualModelEntry
+    Qt.callLater(function() {
+      if (root.manualModelEntry) customModelField.forceActiveFocus()
+      else modelPicker.forceActiveFocus()
+    })
   }
 
   function values() {
@@ -51,7 +89,7 @@ FocusScope {
       name: nameField.text.trim(),
       icon: iconField.text.trim(),
       adapterId: adapterPicker.value,
-      model: modelField.text.trim() || null,
+      model: modelPicker.value.trim() || null,
       systemInstructions: instructionsField.text,
       workingDirectoryStrategy: directoryStrategy.value,
       workingDirectory: directoryField.text.trim() || null,
@@ -183,18 +221,81 @@ FocusScope {
             fontFamily: Style.font.menuFamily
             options: ["codex", "claude", "opencode", "grok", "cursor", "pi", "custom"]
             value: "codex"
+            onChanged: function(adapterId) {
+              modelPicker.value = ""
+              customModelField.text = ""
+              root.manualModelEntry = false
+              root.modelDiscoveryRequested(adapterId, false)
+            }
           }
         }
 
         FormField {
           Layout.fillWidth: true
           label: "Model"
-          TextField {
-            id: modelField
+          ColumnLayout {
             width: parent.width
-            foreground: Color.popups.text
-            font.family: Style.font.menuFamily
-            placeholderText: "CLI default"
+            spacing: Style.spacing.labelGap
+
+            RowLayout {
+              Layout.fillWidth: true
+              spacing: Style.spacing.sm
+
+              SearchableDropdown {
+                id: modelPicker
+                Layout.fillWidth: true
+                visible: !root.manualModelEntry
+                showLabel: false
+                foreground: Color.popups.text
+                fontFamily: Style.font.menuFamily
+                options: root.searchableModelOptions()
+                placeholderText: root.modelsLoading
+                  ? "Discovering models..." : "Search models..."
+                emptyText: "No matching models"
+              }
+
+              TextField {
+                id: customModelField
+                Layout.fillWidth: true
+                visible: root.manualModelEntry
+                foreground: Color.popups.text
+                font.family: Style.font.menuFamily
+                placeholderText: "Custom model ID"
+                onTextEdited: modelPicker.value = text
+              }
+
+              PanelActionButton {
+                iconText: root.manualModelEntry ? "󰅖" : "󰘦"
+                tooltipText: root.manualModelEntry
+                  ? "Choose a discovered model" : "Enter a custom model ID"
+                foreground: Color.popups.text
+                fontFamily: Style.font.menuFamily
+                focusable: true
+                onClicked: root.toggleManualModelEntry()
+              }
+
+              PanelActionButton {
+                iconText: "󰑐"
+                tooltipText: "Refresh model catalog"
+                foreground: Color.popups.text
+                fontFamily: Style.font.menuFamily
+                focusable: true
+                enabled: adapterPicker.value !== "custom" && !root.modelsLoading
+                onClicked: root.modelDiscoveryRequested(adapterPicker.value, true)
+              }
+            }
+
+            Text {
+              Layout.fillWidth: true
+              visible: root.modelsLoading || root.modelsError.length > 0
+              text: root.modelsLoading ? "Discovering models..." : root.modelsError
+              color: root.modelsError.length > 0
+                ? Color.urgent : Qt.darker(Color.popups.text, 1.5)
+              font.family: Style.font.menuFamily
+              font.pixelSize: Style.font.caption
+              textFormat: Text.PlainText
+              elide: Text.ElideRight
+            }
           }
         }
 

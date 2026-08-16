@@ -7,7 +7,7 @@ import os
 import re
 from pathlib import Path
 
-from .base import AdapterContext, AdapterEvent, Capabilities, Invocation
+from .base import AdapterContext, AdapterEvent, Capabilities, Invocation, ModelOption
 
 
 PLACEHOLDERS = {"{prompt}", "{cwd}", "{model}", "{session}", "{attachments}"}
@@ -69,6 +69,9 @@ class CustomAdapter:
         executable = Path(self.executable)
         available = executable.is_file() if executable.is_absolute() else True
         return {"available": available, "version": "custom"}
+
+    def discover_models(self, cwd: Path | None = None) -> tuple[ModelOption, ...]:
+        return ()
 
     def start(self, context: AdapterContext) -> Invocation:
         replacements = {

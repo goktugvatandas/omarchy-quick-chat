@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Mapping
 
-from .base import Adapter
+from .base import Adapter, ModelOption
 
 
 ADAPTER_IDS = ("codex", "claude", "opencode", "grok", "cursor", "pi", "custom")
@@ -16,6 +17,7 @@ class AdapterRegistry:
             adapter_id: None for adapter_id in ADAPTER_IDS
         }
         self._probe_cache: dict[str, dict[str, object]] = {}
+        self._model_cache: dict[tuple[str, str], tuple[ModelOption, ...]] = {}
         self._acp_transports = {}
         self._acp_failed: set[tuple[str, str | None]] = set()
         if adapters is None:
@@ -65,6 +67,23 @@ class AdapterRegistry:
 
     def invalidate(self, adapter_id: str) -> None:
         self._probe_cache.pop(adapter_id, None)
+        for key in tuple(self._model_cache):
+            if key[0] == adapter_id:
+                self._model_cache.pop(key, None)
+
+    def models(
+        self,
+        adapter_id: str,
+        cwd: Path | None = None,
+        refresh: bool = False,
+    ) -> tuple[ModelOption, ...]:
+        directory = (cwd or Path.home()).expanduser().resolve()
+        key = (adapter_id, str(directory))
+        if refresh:
+            self._model_cache.pop(key, None)
+        if key not in self._model_cache:
+            self._model_cache[key] = self.get(adapter_id).discover_models(directory)
+        return self._model_cache[key]
 
     def acp_transport(
         self,
@@ -92,3 +111,4 @@ class AdapterRegistry:
         for transport in self._acp_transports.values():
             transport.close()
         self._acp_transports.clear()
+        self._model_cache.clear()

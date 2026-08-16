@@ -5,8 +5,9 @@ from __future__ import annotations
 import re
 import subprocess
 from dataclasses import replace
+from pathlib import Path
 
-from .base import Capabilities
+from .base import Capabilities, ModelOption
 
 
 VERSION_PATTERN = re.compile(r"\d+(?:\.\d+)+")
@@ -33,6 +34,9 @@ class ProcessAdapterBase:
 
     def degrade(self) -> None:
         self._degraded = True
+
+    def discover_models(self, cwd: Path | None = None) -> tuple[ModelOption, ...]:
+        return ()
 
     def detect(self) -> dict[str, object]:
         try:

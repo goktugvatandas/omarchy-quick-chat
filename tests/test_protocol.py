@@ -6,7 +6,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from bridge.quick_chat.main import run
+from bridge.quick_chat.main import _handle_local_request, run
+from bridge.quick_chat.adapters.base import Capabilities, ModelOption
+from bridge.quick_chat.adapters.registry import AdapterRegistry
 from bridge.quick_chat.protocol import Event, ProtocolError, Request
 
 
@@ -107,6 +109,47 @@ class RequestTests(unittest.TestCase):
                 "requestId": "req-clear",
                 "confirm": "yes",
             })
+
+    def test_model_list_request_accepts_adapter_and_refresh(self):
+        parsed = Request.from_dict({
+            "type": "models.list",
+            "requestId": "req-models",
+            "adapterId": "cursor",
+            "refresh": True,
+        })
+        self.assertEqual(parsed.adapter_id, "cursor")
+        self.assertTrue(parsed.refresh)
+
+
+class FakeModelAdapter:
+    id = "codex"
+    capabilities = Capabilities(True, True, True, True, True, False)
+
+    def detect(self):
+        return {"available": True, "version": "test"}
+
+    def discover_models(self, cwd=None):
+        return (
+            ModelOption("gpt-5.6-sol", "GPT-5.6 Sol", "Fast coding model"),
+            ModelOption("gpt-5.6-terra", "GPT-5.6 Terra", "Balanced coding model"),
+        )
+
+
+class ModelCatalogRequestTests(unittest.TestCase):
+    def test_local_model_request_returns_adapter_catalog(self):
+        request = Request.from_dict({
+            "type": "models.list",
+            "requestId": "req-models",
+            "adapterId": "codex",
+        })
+        registry = AdapterRegistry({"codex": FakeModelAdapter()})
+        events = _handle_local_request(request, registry)
+        self.assertEqual(events[-1].type, "complete")
+        self.assertEqual(events[-1].data["adapterId"], "codex")
+        self.assertEqual(
+            [model["id"] for model in events[-1].data["models"]],
+            ["gpt-5.6-sol", "gpt-5.6-terra"],
+        )
 
 
 class EventTests(unittest.TestCase):

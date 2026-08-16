@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from .base import AdapterContext, AdapterEvent, Capabilities, Invocation
 from .json_process import JsonProcessAdapter
+from ..model_discovery import discover_command_models
 
 
 class OpenCodeAdapter(JsonProcessAdapter):
     id = "opencode"
     executable = "opencode"
     _capabilities = Capabilities(True, True, True, True, True, False)
+
+    def discover_models(self, cwd: Path | None = None):
+        return discover_command_models(("opencode", "models"), "opencode", cwd)
 
     def start(self, context: AdapterContext) -> Invocation:
         arguments = [

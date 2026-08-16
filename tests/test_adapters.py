@@ -2,7 +2,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from bridge.quick_chat.adapters.base import AdapterContext, AdapterEvent
 from bridge.quick_chat.adapters.claude import ClaudeAdapter
@@ -42,6 +42,26 @@ def adjacent_pairs(values):
 
 
 class CodexAdapterTests(unittest.TestCase):
+    @patch("bridge.quick_chat.model_discovery.subprocess.run")
+    def test_codex_discovers_models_from_app_server(self, run):
+        run.return_value = Mock(
+            returncode=0,
+            stdout=(
+                '{"id":1,"result":{}}\n'
+                '{"id":2,"result":{"data":['
+                '{"model":"gpt-5.6-sol","displayName":"GPT-5.6 Sol",'
+                '"description":"Fast coding model","hidden":false},'
+                '{"model":"hidden","displayName":"Hidden","hidden":true}'
+                ']}}\n'
+            ),
+            stderr="",
+        )
+        models = CodexAdapter().discover_models(Path.home())
+        self.assertEqual([model.id for model in models], ["gpt-5.6-sol"])
+        self.assertEqual(models[0].label, "GPT-5.6 Sol")
+        self.assertEqual(run.call_args.args[0], ("codex", "app-server", "--stdio"))
+        self.assertIn('"method":"model/list"', run.call_args.kwargs["input"])
+
     def test_codex_is_read_only_and_accepts_prompt_on_stdin(self):
         call = CodexAdapter().start(context(prompt="explain", model="gpt-5"))
         self.assertEqual(call.argv[:4], ("codex", "exec", "--json", "--sandbox"))
@@ -84,6 +104,10 @@ class CodexAdapterTests(unittest.TestCase):
 
 
 class ClaudeAdapterTests(unittest.TestCase):
+    def test_claude_exposes_supported_cli_model_aliases(self):
+        models = ClaudeAdapter().discover_models(Path.home())
+        self.assertEqual([model.id for model in models], ["sonnet", "opus", "haiku"])
+
     def test_claude_uses_plan_mode_and_disallows_mutation_tools(self):
         call = ClaudeAdapter().start(context(prompt="explain"))
         self.assertIn(("--permission-mode", "plan"), adjacent_pairs(call.argv))
@@ -117,6 +141,38 @@ class ClaudeAdapterTests(unittest.TestCase):
 
 
 class RemainingAdapterTests(unittest.TestCase):
+    @patch("bridge.quick_chat.model_discovery.subprocess.run")
+    def test_cli_catalog_commands_are_parsed_into_selectable_models(self, run):
+        fixtures = (
+            (OpenCodeAdapter(), ("opencode", "models"), "anthropic/claude-sonnet-4\nopenai/gpt-5\n", ["anthropic/claude-sonnet-4", "openai/gpt-5"]),
+            (
+                CursorAdapter(),
+                ("cursor-agent", "models"),
+                "Available models\nauto - Auto (current, default)\n"
+                "gpt-5 - GPT-5\nsonnet-4-thinking - Sonnet 4 Thinking\n"
+                "Tip: use --model <id> to switch.\n",
+                ["auto", "gpt-5", "sonnet-4-thinking"],
+            ),
+            (PiAdapter(), ("pi", "--list-models"), "anthropic  claude-sonnet-4\nopenai  gpt-5\n", ["anthropic/claude-sonnet-4", "openai/gpt-5"]),
+            (GrokAdapter(), ("grok", "--no-auto-update", "models"), "grok-build\ngrok-4.3\n", ["grok-build", "grok-4.3"]),
+        )
+        for adapter, argv, stdout, expected in fixtures:
+            with self.subTest(adapter=adapter.id):
+                run.reset_mock()
+                run.return_value = Mock(returncode=0, stdout=stdout, stderr="")
+                models = adapter.discover_models(Path.home())
+                self.assertEqual([model.id for model in models], expected)
+                self.assertEqual(run.call_args.args[0], argv)
+
+        run.return_value = Mock(
+            returncode=0,
+            stdout="auto - Auto (current, default)\ngpt-5 - GPT-5\n",
+            stderr="",
+        )
+        cursor_models = CursorAdapter().discover_models(Path.home())
+        self.assertEqual(cursor_models[1].label, "GPT-5")
+        self.assertEqual(cursor_models[1].description, "gpt-5")
+
     def test_process_adapters_never_auto_approve(self):
         calls = [
             OpenCodeAdapter().start(context()),

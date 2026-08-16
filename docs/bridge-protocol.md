@@ -18,9 +18,19 @@ A chat turn is submitted with a stable request, conversation, and profile ID:
 ```
 
 Requests support these types: `run`, `cancel`, `approve`, `deny`, `probe`,
-`profiles`, `history.list`, `history.get`, `history.clear`, `context.capture`,
-`context.ocr`, and `context.remove`. Events support `ready`, `status`,
+`models.list`, `profiles`, `history.list`, `history.get`, `history.clear`,
+`context.capture`, `context.ocr`, and `context.remove`. Events support `ready`, `status`,
 `text_delta`, `tool_request`, `session`, `complete`, and `error`.
+
+Model discovery identifies the adapter and may bypass the bridge-lifetime cache:
+
+```json
+{"type":"models.list","requestId":"req-models","profileId":"codex","adapterId":"codex","refresh":false}
+```
+
+The corresponding completion contains selectable `id`, `label`, and
+`description` fields. Discovery failures are returned as normal `error` events
+and are rendered only in profile settings.
 
 Attachments are typed as `image`, `text`, or `metadata`. File-backed
 attachments are accepted only beneath `$XDG_RUNTIME_DIR/omarchy-quick-chat`
