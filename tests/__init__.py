@@ -1,0 +1,1 @@
+"""Quick Chat test suite."""

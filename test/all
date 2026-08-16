@@ -1,0 +1,7 @@
+#!/bin/bash
+set -euo pipefail
+
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+bash "$ROOT/test/manifest-test.sh"
+bash "$ROOT/test/qml-static-test.sh"
+python3 -m unittest discover -s "$ROOT/tests" -p 'test_*.py'
