@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Commons
 import qs.Ui
+import "../models/EffortModel.js" as EffortModel
 
 FocusScope {
   id: root
@@ -9,6 +10,7 @@ FocusScope {
   property var profileState: null
   property var activeProfile: null
   property var modelOptions: []
+  property var adapterStates: []
   property bool modelsLoading: false
   property string modelsError: ""
   property string shortcutError: ""
@@ -30,6 +32,7 @@ FocusScope {
     iconField.text = activeProfile.icon || ""
     adapterPicker.value = activeProfile.adapterId || "codex"
     modelPicker.value = activeProfile.model || ""
+    effortPicker.value = activeProfile.thinkingEffort || null
     customModelField.text = modelPicker.value
     manualModelEntry = false
     instructionsField.text = activeProfile.systemInstructions || ""
@@ -76,6 +79,24 @@ FocusScope {
     return options
   }
 
+  function editingEffortChoices() {
+    var catalogs = ({})
+    catalogs[adapterPicker.value] = root.modelOptions
+    return EffortModel.choices({
+      adapterId: adapterPicker.value,
+      model: modelPicker.value || null
+    }, root.adapterStates, catalogs)
+  }
+
+  function reconcileEditingEffort() {
+    if (root.modelsLoading) return
+    var reconciliation = EffortModel.reconcile(
+      effortPicker.value,
+      root.editingEffortChoices()
+    )
+    if (reconciliation.reset) effortPicker.value = null
+  }
+
   function toggleManualModelEntry() {
     if (!manualModelEntry)
       customModelField.text = modelPicker.value
@@ -95,6 +116,7 @@ FocusScope {
       icon: iconField.text.trim(),
       adapterId: adapterPicker.value,
       model: modelPicker.value.trim() || null,
+      thinkingEffort: effortPicker.value,
       systemInstructions: instructionsField.text,
       workingDirectoryStrategy: directoryStrategy.value,
       workingDirectory: directoryField.text.trim() || null,
@@ -126,6 +148,11 @@ FocusScope {
     discoverCurrentModels(false)
   }
   onVisibleChanged: discoverCurrentModels(false)
+  onModelOptionsChanged: reconcileEditingEffort()
+  onAdapterStatesChanged: reconcileEditingEffort()
+  onModelsLoadingChanged: {
+    if (!modelsLoading) reconcileEditingEffort()
+  }
 
   ThemedScrollView {
     id: settingsScroll
@@ -235,6 +262,7 @@ FocusScope {
             value: "codex"
             onChanged: function(adapterId) {
               modelPicker.value = ""
+              effortPicker.value = null
               customModelField.text = ""
               root.manualModelEntry = false
               root.modelDiscoveryRequested(adapterId, false)
@@ -265,6 +293,7 @@ FocusScope {
                 placeholderText: root.modelsLoading
                   ? "Discovering models..." : "Search models..."
                 emptyText: "No matching models"
+                onValueChanged: root.reconcileEditingEffort()
               }
 
               TextField {
@@ -309,6 +338,18 @@ FocusScope {
               textFormat: Text.PlainText
               elide: Text.ElideRight
             }
+          }
+        }
+
+        FormField {
+          Layout.fillWidth: true
+          Layout.preferredWidth: 1
+          label: "Thinking effort"
+          ThinkingEffortPicker {
+            id: effortPicker
+            width: parent.width
+            choices: root.editingEffortChoices()
+            onSelectionRequested: function(value) { effortPicker.value = value }
           }
         }
 

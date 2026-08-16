@@ -2,6 +2,7 @@ const assert = require("node:assert/strict")
 const ChatModel = require("../models/ChatModel.js")
 const ProfileModel = require("../models/ProfileModel.js")
 const HarnessPickerModel = require("../models/HarnessPickerModel.js")
+const EffortModel = require("../models/EffortModel.js")
 
 const state = ChatModel.initialState("conv-1", "codex")
 const started = ChatModel.beginRun(state, "req-1", "Say hello", [], false)
@@ -144,6 +145,60 @@ assert.deepEqual(
   configuredModelRows.filter(row => row.kind === "model").map(row => row.modelId),
   ["", "local/model"]
 )
+
+const effortProfile = {
+  id: "codex",
+  adapterId: "codex",
+  model: "gpt-5.6-sol",
+  thinkingEffort: "high"
+}
+const effortCatalogs = {
+  codex: [{
+    id: "gpt-5.6-sol",
+    isDefault: true,
+    efforts: [
+      { id: "low", label: "Low", description: "Faster" },
+      { id: "high", label: "High", description: "Deeper" }
+    ]
+  }]
+}
+const effortChoices = EffortModel.choices(effortProfile, [], effortCatalogs)
+assert.deepEqual(effortChoices.map(item => item.id), ["low", "high"])
+assert.deepEqual(
+  EffortModel.reconcile("xhigh", effortChoices),
+  { value: null, reset: true }
+)
+assert.deepEqual(
+  EffortModel.reconcile("high", effortChoices),
+  { value: "high", reset: false }
+)
+assert.deepEqual(
+  EffortModel.rows("high", effortChoices).map(row => row.id),
+  [null, "low", "high"]
+)
+assert.equal(EffortModel.rows("high", effortChoices)[2].selected, true)
+
+const adapterEfforts = [{
+  id: "claude",
+  efforts: [{ id: "medium", label: "Medium" }]
+}]
+assert.deepEqual(
+  EffortModel.choices(
+    { adapterId: "claude", model: null },
+    adapterEfforts,
+    { claude: [{ id: "sonnet", isDefault: true, efforts: null }] }
+  ).map(item => item.id),
+  ["medium"]
+)
+assert.deepEqual(
+  EffortModel.choices(
+    { adapterId: "claude", model: "sonnet" },
+    adapterEfforts,
+    { claude: [{ id: "sonnet", efforts: [] }] }
+  ),
+  []
+)
+assert.deepEqual(EffortModel.reconcile(null, []), { value: null, reset: false })
 
 const loaded = ChatModel.loadConversation(ChatModel.initialState("new", "codex"), {
   id: "saved",

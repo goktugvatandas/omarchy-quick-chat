@@ -13,11 +13,15 @@ ColumnLayout {
   property var modelCatalogs: ({})
   property var modelCatalogErrors: ({})
   property var modelRequests: ({})
+  property var effortChoices: []
+  property var thinkingEffort: null
+  property string statusText: ""
   property alias text: prompt.text
   signal sendRequested(string prompt)
   signal stopRequested()
   signal contextRequested(string mode)
   signal agentModelSelected(string profileId, string modelId)
+  signal effortSelected(var value)
   signal modelDiscoveryRequested(string profileId, string adapterId, bool refresh)
 
   function focusInput() {
@@ -26,6 +30,10 @@ ColumnLayout {
 
   function openAgentPicker() {
     agentPicker.open()
+  }
+
+  function openEffortPicker() {
+    effortPicker.open()
   }
 
   function insertNewline() {
@@ -62,14 +70,25 @@ ColumnLayout {
     }
   }
 
+  Text {
+    Layout.fillWidth: true
+    visible: root.statusText.length > 0
+    text: root.statusText
+    color: Qt.darker(Color.popups.text, 1.35)
+    font.family: Style.font.menuFamily
+    font.pixelSize: Style.font.caption
+    textFormat: Text.PlainText
+    elide: Text.ElideRight
+  }
+
   RowLayout {
     Layout.fillWidth: true
     spacing: Style.spacing.sm
 
     HarnessModelPicker {
       id: agentPicker
-      Layout.preferredWidth: Style.space(270)
-      Layout.minimumWidth: Style.space(190)
+      Layout.preferredWidth: Style.space(220)
+      Layout.minimumWidth: Style.space(170)
       Layout.maximumWidth: Style.space(320)
       profileId: root.profileId
       profiles: root.profiles
@@ -83,6 +102,17 @@ ColumnLayout {
       onModelDiscoveryRequested: function(nextProfileId, adapterId, refresh) {
         root.modelDiscoveryRequested(nextProfileId, adapterId, refresh)
       }
+    }
+
+    ThinkingEffortPicker {
+      id: effortPicker
+      Layout.preferredWidth: Style.space(96)
+      Layout.minimumWidth: Style.space(82)
+      Layout.maximumWidth: Style.space(130)
+      choices: root.effortChoices
+      value: root.thinkingEffort
+      enabled: !root.running
+      onSelectionRequested: function(value) { root.effortSelected(value) }
     }
 
     Button {

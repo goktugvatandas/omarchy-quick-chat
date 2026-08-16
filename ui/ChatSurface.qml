@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import qs.Commons
 import ".."
 import "../models/ChatModel.js" as ChatModel
+import "../models/EffortModel.js" as EffortModel
 import "../models/ProfileModel.js" as ProfileModel
 import qs.Ui
 
@@ -27,6 +28,7 @@ Item {
   property var modelCatalogs: ({})
   property var modelCatalogErrors: ({})
   property var modelRequests: ({})
+  property string effortStatus: ""
   property string pendingPrompt: ""
   property var pendingApproval: null
   property string pendingClipboard: ""
@@ -94,11 +96,24 @@ Item {
     profileId = nextProfileId
     chatState = ChatModel.initialState(conversationId, profileId)
     if (modelChanged) {
+      var values = { model: nextModel || null }
+      var candidate = Object.assign({}, profile, values)
+      var reconciliation = EffortModel.reconcile(
+        profile.thinkingEffort,
+        EffortModel.choices(candidate, adapterStates, modelCatalogs)
+      )
+      if (reconciliation.reset) {
+        values.thinkingEffort = null
+        setEffortStatus(
+          "Thinking effort reset to Default because the new model does not support it."
+        )
+      }
       saveProfiles(ProfileModel.update(profileState, {
         profileId: nextProfileId,
-        values: { model: nextModel || null }
+        values: values
       }))
     }
+    Qt.callLater(reconcileActiveThinkingEffort)
     Qt.callLater(focusActivePage)
   }
 
@@ -109,6 +124,50 @@ Item {
         return profileState.profiles[index]
     }
     return null
+  }
+
+  function activeEffortChoices() {
+    return EffortModel.choices(activeProfile(), adapterStates, modelCatalogs)
+  }
+
+  function setEffortStatus(message) {
+    effortStatus = String(message || "")
+    if (effortStatus) effortStatusTimer.restart()
+  }
+
+  function selectThinkingEffort(value) {
+    var profile = activeProfile()
+    if (!profile || !profileState || chatState.running) return
+    var requested = value === undefined || value === null || value === ""
+      ? null : String(value)
+    var reconciliation = EffortModel.reconcile(requested, activeEffortChoices())
+    if (reconciliation.reset) {
+      setEffortStatus("That thinking effort is not supported by the active model.")
+      return
+    }
+    if ((profile.thinkingEffort || null) === reconciliation.value) return
+    setEffortStatus("")
+    saveProfiles(ProfileModel.update(profileState, {
+      profileId: profile.id,
+      values: { thinkingEffort: reconciliation.value }
+    }))
+  }
+
+  function reconcileActiveThinkingEffort() {
+    var profile = activeProfile()
+    if (!profile || !profileState) return
+    var reconciliation = EffortModel.reconcile(
+      profile.thinkingEffort,
+      activeEffortChoices()
+    )
+    if (!reconciliation.reset) return
+    setEffortStatus(
+      "Thinking effort reset to Default because this model does not support it."
+    )
+    saveProfiles(ProfileModel.update(profileState, {
+      profileId: profile.id,
+      values: { thinkingEffort: null }
+    }))
   }
 
   function requestProfilesAndHistory() {
@@ -139,6 +198,9 @@ Item {
       var emptyCatalogs = Object.assign({}, root.modelCatalogs)
       emptyCatalogs[adapterId] = []
       root.modelCatalogs = emptyCatalogs
+      var customProfile = root.activeProfile()
+      if (customProfile && customProfile.adapterId === adapterId)
+        Qt.callLater(root.reconcileActiveThinkingEffort)
       return
     }
     if (root.modelsLoadingFor(adapterId)) return
@@ -174,6 +236,9 @@ Item {
       var catalogs = Object.assign({}, root.modelCatalogs)
       catalogs[adapterId] = event.data.models || []
       root.modelCatalogs = catalogs
+      var profile = root.activeProfile()
+      if (profile && profile.adapterId === adapterId)
+        Qt.callLater(root.reconcileActiveThinkingEffort)
     } else {
       var errors = Object.assign({}, root.modelCatalogErrors)
       errors[adapterId] = event.data.message || "Model discovery failed."
@@ -249,6 +314,8 @@ Item {
     Qt.callLater(focusActivePage)
     if (name === "picker")
       Qt.callLater(function() { composer.openAgentPicker() })
+    else if (name === "effort-picker")
+      Qt.callLater(function() { composer.openEffortPicker() })
   }
 
   function sendPrompt(prompt) {
@@ -385,6 +452,18 @@ Item {
 
   onActivePageChanged: Qt.callLater(focusActivePage)
 
+  onProfileIdChanged: Qt.callLater(function() {
+    var profile = root.activeProfile()
+    if (profile) root.requestModels(profile.adapterId, false, profile.id)
+  })
+
+  Timer {
+    id: effortStatusTimer
+    interval: 5000
+    repeat: false
+    onTriggered: root.effortStatus = ""
+  }
+
   BridgeClient {
     id: bridge
     manifest: root.manifest
@@ -395,6 +474,10 @@ Item {
         root.profileState = ProfileModel.normalize(event.data.config)
         root.adapterStates = event.data.adapters || []
         root.profileId = root.profileState.selectedId
+        Qt.callLater(function() {
+          var profile = root.activeProfile()
+          if (profile) root.requestModels(profile.adapterId, false, profile.id)
+        })
       } else if (event.type === "complete" && event.requestId === root.historyRequestId) {
         root.historyItems = event.data.conversations || []
       } else if (event.type === "complete" && event.requestId === root.historyGetRequestId) {
@@ -518,11 +601,16 @@ Item {
           modelCatalogs: root.modelCatalogs
           modelCatalogErrors: root.modelCatalogErrors
           modelRequests: root.modelRequests
+          effortChoices: root.activeEffortChoices()
+          thinkingEffort: root.activeProfile()
+            ? root.activeProfile().thinkingEffort : null
+          statusText: root.effortStatus
           onSendRequested: function(prompt) { root.sendPrompt(prompt) }
           onContextRequested: function(mode) { root.requestContext(mode) }
           onAgentModelSelected: function(nextProfileId, modelId) {
             root.selectProfileModel(nextProfileId, modelId)
           }
+          onEffortSelected: function(value) { root.selectThinkingEffort(value) }
           onModelDiscoveryRequested: function(nextProfileId, adapterId, refresh) {
             root.requestModels(adapterId, refresh, nextProfileId)
           }
@@ -547,6 +635,7 @@ Item {
         profileState: root.profileState
         activeProfile: root.activeProfile()
         modelOptions: root.modelsFor(editingAdapterId)
+        adapterStates: root.adapterStates
         modelsLoading: root.modelsLoadingFor(editingAdapterId)
         modelsError: root.modelErrorFor(editingAdapterId)
         shortcutError: root.service ? root.service.lastError : ""

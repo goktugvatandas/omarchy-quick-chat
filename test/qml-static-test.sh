@@ -93,6 +93,12 @@ composer = (root / "ui/Composer.qml").read_text()
 assert "HarnessModelPicker {" in composer, (
     "the unified agent/model picker must sit beside the prompt controls"
 )
+harness_index = composer.index("HarnessModelPicker {")
+effort_index = composer.index("ThinkingEffortPicker {")
+first_action_index = composer.index("Button {", harness_index)
+assert harness_index < effort_index < first_action_index, (
+    "the thinking-effort picker must immediately follow the agent/model picker"
+)
 assert "Qt.Key_Tab" in composer and "agentPicker.focusTrigger()" in composer, (
     "keyboard users must be able to move from the prompt to its adjacent picker"
 )
@@ -126,6 +132,27 @@ assert "selectionRequested" in harness_picker, (
     "a nested model must select both its agent and model"
 )
 
+effort_picker = (root / "ui/ThinkingEffortPicker.qml").read_text()
+assert "QQC.Popup {" in effort_picker and "modal: false" in effort_picker, (
+    "the effort picker must use a non-modal anchored popup"
+)
+assert "y: -height" in effort_picker, "the effort picker must open upward"
+assert "enabled: root.choices.length > 0" in effort_picker, (
+    "unsupported models must leave a disabled Default effort indicator"
+)
+assert 'property string currentLabel: "Default"' in effort_picker, (
+    "the effort indicator must default visibly and safely"
+)
+assert effort_picker.count("QQC.ScrollBar.vertical") == 1, (
+    "the bounded effort list must expose exactly one vertical scrollbar"
+)
+assert "QQC.ScrollBar.horizontal" not in effort_picker, (
+    "the effort popup must not render a meaningless horizontal scrollbar"
+)
+for key in ("Qt.Key_Up", "Qt.Key_Down", "Qt.Key_Home", "Qt.Key_End",
+            "Qt.Key_Return", "Qt.Key_Space", "Qt.Key_Escape"):
+    assert key in effort_picker, f"effort picker is missing keyboard support for {key}"
+
 message_list = (root / "ui/MessageList.qml").read_text()
 assert "TextEdit {" in message_list and "readOnly: true" in message_list, (
     "message text must use a selectable read-only text type"
@@ -145,6 +172,7 @@ themed_consumers = [
     root / "ui/ChatHeader.qml",
     root / "ui/Composer.qml",
     root / "ui/HarnessModelPicker.qml",
+    root / "ui/ThinkingEffortPicker.qml",
     root / "ui/FormField.qml",
     root / "ui/HistoryDrawer.qml",
     root / "ui/InlineError.qml",
@@ -184,6 +212,9 @@ assert "modelDiscoveryRequested" in profile_settings, (
 )
 assert "if (!visible || !activeProfile) return" in profile_settings, (
     "model discovery must not delay chat while profile settings are hidden"
+)
+assert "thinkingEffort: effortPicker.value" in profile_settings, (
+    "profile settings must serialize the selected thinking effort"
 )
 assert 'type: "models.list"' in chat_surface, (
     "chat surface must request model catalogs through the bridge"
