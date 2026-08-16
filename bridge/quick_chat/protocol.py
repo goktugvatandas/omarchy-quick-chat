@@ -103,6 +103,9 @@ class Request:
     attachments: tuple[Attachment, ...] = ()
     private: bool = False
     confirm: bool = False
+    mode: str | None = None
+    attachment_id: str | None = None
+    query: str | None = None
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> Request:
@@ -125,6 +128,11 @@ class Request:
             )
             profile_id = require_optional_string("profileId", value.get("profileId"))
             prompt = require_optional_string("prompt", value.get("prompt"))
+            mode = require_optional_string("mode", value.get("mode"))
+            attachment_id = require_optional_string(
+                "attachmentId", value.get("attachmentId")
+            )
+            query = require_optional_string("query", value.get("query"))
         except ValueError as error:
             raise ProtocolError(str(error)) from error
 
@@ -165,6 +173,9 @@ class Request:
             attachments=attachments,
             private=private,
             confirm=confirm,
+            mode=mode,
+            attachment_id=attachment_id,
+            query=query,
         )
 
 

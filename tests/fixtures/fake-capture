@@ -1,0 +1,3 @@
+#!/bin/bash
+set -euo pipefail
+printf '%s\n' "${QUICK_CHAT_FAKE_CAPTURE:?}"

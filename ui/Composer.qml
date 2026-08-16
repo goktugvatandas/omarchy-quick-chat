@@ -7,9 +7,11 @@ ColumnLayout {
   id: root
 
   property bool running: false
+  property int attachmentCount: 0
   property alias text: prompt.text
   signal sendRequested(string prompt)
   signal stopRequested()
+  signal contextRequested(string mode)
 
   function focusInput() {
     prompt.forceActiveFocus()
@@ -32,6 +34,25 @@ ColumnLayout {
         if (!root.running && prompt.text.trim()) root.sendRequested(prompt.text)
         event.accepted = true
       }
+    }
+  }
+
+  RowLayout {
+    Layout.fillWidth: true
+    spacing: Style.space(4)
+
+    Button { text: "Window"; onClicked: root.contextRequested("window") }
+    Button { text: "Screen"; onClicked: root.contextRequested("screen") }
+    Button { text: "App"; onClicked: root.contextRequested("app") }
+    Button { text: "Selected text"; onClicked: root.contextRequested("selection") }
+
+    Text {
+      Layout.fillWidth: true
+      horizontalAlignment: Text.AlignRight
+      text: root.attachmentCount ? root.attachmentCount + " attached" : "Context is opt-in"
+      color: Color.menu.text
+      opacity: 0.6
+      font.pixelSize: Style.font.caption
     }
   }
 

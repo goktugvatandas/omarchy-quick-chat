@@ -25,11 +25,13 @@ class Engine:
         transport: Transport,
         config: Config,
         session_resolver: Callable[[str, str], str | None] | None = None,
+        attachment_cleanup: Callable[[tuple[str, ...]], None] | None = None,
     ) -> None:
         self.registry = registry
         self.transport = transport
         self.config = config
         self.session_resolver = session_resolver
+        self.attachment_cleanup = attachment_cleanup
         self._lock = threading.Lock()
         self._active_request_id: str | None = None
 
@@ -63,11 +65,21 @@ class Engine:
                 })
                 return
             adapter = self.registry.get(profile.adapter_id)
-            cwd = (
-                Path(profile.working_directory)
-                if profile.working_directory_strategy == "fixed"
-                else Path.home()
-            )
+            cwd_diagnostic = None
+            if profile.working_directory_strategy == "fixed":
+                cwd = Path(profile.working_directory or "")
+            elif profile.working_directory_strategy == "active-project":
+                from .context.app import ActiveAppProvider, ActiveProjectResolver
+
+                try:
+                    metadata = ActiveAppProvider().get()
+                    resolution = ActiveProjectResolver().resolve(metadata.pid)
+                except (OSError, RuntimeError, ValueError):
+                    resolution = ActiveProjectResolver().resolve(None)
+                cwd = resolution.path
+                cwd_diagnostic = resolution.diagnostic
+            else:
+                cwd = Path.home()
             context = AdapterContext(
                 prompt=request.prompt or "",
                 model=profile.model,
@@ -88,6 +100,11 @@ class Engine:
                 "status": "starting",
                 "adapterId": profile.adapter_id,
             })
+            if cwd_diagnostic:
+                yield Event("status", request.request_id, {
+                    "status": "working_directory_fallback",
+                    "message": cwd_diagnostic,
+                })
 
             normalized: queue.Queue[AdapterEvent] = queue.Queue()
             result_holder = []
@@ -160,4 +177,8 @@ class Engine:
             else:
                 yield Event("complete", request.request_id, terminal_data)
         finally:
+            if self.attachment_cleanup is not None:
+                self.attachment_cleanup(tuple(
+                    attachment.id for attachment in request.attachments
+                ))
             self._release(request.request_id)

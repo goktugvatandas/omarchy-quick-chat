@@ -16,6 +16,10 @@ Item {
   property var chatState: ChatModel.initialState(conversationId, profileId)
   property var profileState: null
   property var historyItems: []
+  property var adapterStates: []
+  property var attachments: []
+  property var contextRequests: ({})
+  property string pendingPrompt: ""
   property bool historyOpen: false
   property string profilesRequestId: ""
   property string historyRequestId: ""
@@ -69,18 +73,72 @@ Item {
   function sendPrompt(prompt) {
     var trimmed = prompt.trim()
     if (!trimmed || chatState.running) return
+    var capabilities = activeCapabilities()
+    var hasImages = attachments.some(function(attachment) {
+      return attachment.kind === "image"
+    })
+    if (hasImages && capabilities && capabilities.native_images === false) {
+      pendingPrompt = prompt
+      imageChoice.opened = true
+      return
+    }
+    dispatchPrompt(prompt)
+  }
+
+  function dispatchPrompt(prompt) {
     var requestId = newRequestId()
-    chatState = ChatModel.beginRun(chatState, requestId, prompt, [], privateMode)
+    chatState = ChatModel.beginRun(chatState, requestId, prompt, attachments, privateMode)
     bridge.send({
       type: "run",
       requestId: requestId,
       conversationId: conversationId,
       profileId: profileId,
       prompt: prompt,
-      attachments: [],
+      attachments: attachments,
       private: privateMode
     })
     composer.text = ""
+  }
+
+  function activeCapabilities() {
+    var profile = activeProfile()
+    if (!profile) return null
+    for (var index = 0; index < adapterStates.length; index += 1) {
+      if (adapterStates[index].id === profile.adapterId)
+        return adapterStates[index].capabilities
+    }
+    return null
+  }
+
+  function requestContext(mode) {
+    var requestId = newRequestId()
+    var requests = Object.assign({}, contextRequests)
+    requests[requestId] = { type: "capture", mode: mode }
+    contextRequests = requests
+    bridge.send({ type: "context.capture", requestId: requestId, mode: mode })
+  }
+
+  function requestOcr(attachmentId) {
+    var requestId = newRequestId()
+    var requests = Object.assign({}, contextRequests)
+    requests[requestId] = { type: "ocr", attachmentId: attachmentId }
+    contextRequests = requests
+    bridge.send({
+      type: "context.ocr",
+      requestId: requestId,
+      attachmentId: attachmentId
+    })
+  }
+
+  function removeAttachment(attachmentId) {
+    attachments = attachments.filter(function(attachment) {
+      return attachment.id !== attachmentId
+    })
+    bridge.send({
+      type: "context.remove",
+      requestId: newRequestId(),
+      attachmentId: attachmentId
+    })
   }
 
   function retry() {
@@ -111,6 +169,7 @@ Item {
         root.requestProfilesAndHistory()
       } else if (event.type === "complete" && event.requestId === root.profilesRequestId) {
         root.profileState = ProfileModel.normalize(event.data.config)
+        root.adapterStates = event.data.adapters || []
         root.profileId = root.profileState.selectedId
       } else if (event.type === "complete" && event.requestId === root.historyRequestId) {
         root.historyItems = event.data.conversations || []
@@ -122,9 +181,17 @@ Item {
       } else if (event.type === "complete" && event.requestId === root.clearRequestId) {
         root.historyItems = []
         root.newConversation()
+      } else if (event.type === "complete" && root.contextRequests[event.requestId]) {
+        if (event.data.attachment)
+          root.attachments = root.attachments.concat([event.data.attachment])
+        var requests = Object.assign({}, root.contextRequests)
+        delete requests[event.requestId]
+        root.contextRequests = requests
       } else {
         root.chatState = ChatModel.reduce(root.chatState, event)
-        if (event.type === "complete" && event.requestId === root.chatState.activeRequestId) {
+        if ((event.type === "complete" || event.type === "error")
+            && event.requestId === root.chatState.activeRequestId) {
+          root.attachments = []
           root.historyRequestId = root.newRequestId()
           bridge.send({ type: "history.list", requestId: root.historyRequestId })
         }
@@ -178,6 +245,14 @@ Item {
         messages: root.chatState.messages
       }
 
+      AttachmentPreview {
+        Layout.fillWidth: true
+        visible: root.attachments.length > 0
+        attachments: root.attachments
+        onRemoveRequested: function(identifier) { root.removeAttachment(identifier) }
+        onOcrRequested: function(identifier) { root.requestOcr(identifier) }
+      }
+
       InlineError {
         Layout.fillWidth: true
         error: root.chatState.error
@@ -189,7 +264,9 @@ Item {
         id: composer
         Layout.fillWidth: true
         running: root.chatState.running
+        attachmentCount: root.attachments.length
         onSendRequested: function(prompt) { root.sendPrompt(prompt) }
+        onContextRequested: function(mode) { root.requestContext(mode) }
         onStopRequested: bridge.send({
           type: "cancel",
           requestId: root.chatState.activeRequestId
@@ -223,6 +300,25 @@ Item {
         requestId: root.clearRequestId,
         confirm: true
       })
+    }
+  }
+
+  ConfirmDialog {
+    id: imageChoice
+    anchors.fill: parent
+    message: "This profile cannot receive images in process mode. Convert them to text or switch profile."
+    cancelText: "Switch profile"
+    confirmText: "Convert to text"
+    onCanceled: {
+      opened = false
+      root.pendingPrompt = ""
+    }
+    onConfirmed: {
+      opened = false
+      for (var index = 0; index < root.attachments.length; index += 1) {
+        if (root.attachments[index].kind === "image")
+          root.requestOcr(root.attachments[index].id)
+      }
     }
   }
 }

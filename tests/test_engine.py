@@ -1,3 +1,4 @@
+import dataclasses
 import os
 import tempfile
 import threading
@@ -13,7 +14,7 @@ from bridge.quick_chat.adapters.base import (
 from bridge.quick_chat.adapters.registry import AdapterRegistry
 from bridge.quick_chat.engine import BusyError, Engine
 from bridge.quick_chat.models import Config
-from bridge.quick_chat.protocol import Request
+from bridge.quick_chat.protocol import Attachment, Request
 from bridge.quick_chat.transports.base import RunResult
 
 
@@ -109,6 +110,21 @@ class EngineTests(unittest.TestCase):
         )
         list(engine.handle(request()))
         self.assertEqual(self.adapter.contexts[0].session_id, "session-existing")
+
+    def test_attachments_are_cleaned_after_every_terminal_path(self):
+        cleaned = []
+        engine = Engine(
+            self.registry,
+            FakeTransport(),
+            Config.default(),
+            attachment_cleanup=lambda identifiers: cleaned.extend(identifiers),
+        )
+        value = request()
+        value = dataclasses.replace(value, attachments=(
+            Attachment("attachment-1", "text", None, "selected", "text/plain"),
+        ))
+        list(engine.handle(value))
+        self.assertEqual(cleaned, ["attachment-1"])
 
 
 if __name__ == "__main__":

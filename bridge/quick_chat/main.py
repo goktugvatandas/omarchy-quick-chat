@@ -5,11 +5,19 @@ from __future__ import annotations
 import json
 import threading
 from dataclasses import asdict
+from dataclasses import replace
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import TextIO
 
 from .adapters.registry import AdapterRegistry
 from .engine import BusyError, Engine
+from .context.app import ActiveAppProvider
+from .context.base import AttachmentRecord, ContextManager
+from .context.capture import CaptureProvider
+from .context.ocr import OcrProvider
+from .context.omarchy import OmarchyQueryProvider
+from .context.selection import SelectionProvider
 from .history import HistoryStore
 from .models import Conversation, Message
 from .paths import PathSet
@@ -114,7 +122,14 @@ def run(input_stream: TextIO, output_stream: TextIO) -> None:
     paths = PathSet.from_env()
     config = ConfigStore(paths).load()
     registry = AdapterRegistry()
-    engine = Engine(registry, ProcessTransport(), config)
+    context_manager = ContextManager(paths)
+    context_manager.sweep()
+    engine = Engine(
+        registry,
+        ProcessTransport(),
+        config,
+        attachment_cleanup=context_manager.remove_many,
+    )
     workers: dict[str, threading.Thread] = {}
     _write_event(
         output_stream,
@@ -211,6 +226,22 @@ def run(input_stream: TextIO, output_stream: TextIO) -> None:
             if request.type == "run":
                 config = ConfigStore(paths).load()
                 engine.config = config
+                for attachment in request.attachments:
+                    try:
+                        context_manager.get(attachment.id)
+                    except ValueError:
+                        context_manager.add(AttachmentRecord(
+                            id=attachment.id,
+                            kind=attachment.kind,
+                            mime_type=attachment.mime_type,
+                            path=Path(attachment.path) if attachment.path else None,
+                            text=attachment.text,
+                            size=(
+                                Path(attachment.path).stat().st_size
+                                if attachment.path and Path(attachment.path).is_file()
+                                else len((attachment.text or "").encode("utf-8"))
+                            ),
+                        ))
                 worker = threading.Thread(target=run_request, args=(request,), daemon=True)
                 workers[request.request_id] = worker
                 worker.start()
@@ -234,6 +265,51 @@ def run(input_stream: TextIO, output_stream: TextIO) -> None:
                     Event("complete", request.request_id, detection),
                     output_lock,
                 )
+            elif request.type == "context.capture":
+                if request.mode == "window":
+                    attachment = CaptureProvider(paths).active_window()
+                    try:
+                        metadata = ActiveAppProvider().get()
+                        attachment = replace(
+                            attachment,
+                            app_name=metadata.app_name,
+                            window_title=metadata.window_title,
+                        )
+                    except (OSError, RuntimeError, ValueError):
+                        pass
+                elif request.mode == "screen":
+                    attachment = CaptureProvider(paths).fullscreen()
+                elif request.mode == "app":
+                    attachment = ActiveAppProvider().get().to_attachment()
+                elif request.mode == "selection":
+                    attachment = SelectionProvider().capture()
+                elif request.mode == "omarchy" and request.query:
+                    attachment = OmarchyQueryProvider().query(request.query)
+                else:
+                    raise ProtocolError("unsupported context capture mode")
+                context_manager.add(attachment)
+                _write_event(output_stream, Event("complete", request.request_id, {
+                    "attachment": attachment.to_wire(),
+                }), output_lock)
+            elif request.type == "context.ocr":
+                if not request.attachment_id:
+                    raise ProtocolError("context.ocr requires attachmentId")
+                source = context_manager.get(request.attachment_id)
+                if source.path is None:
+                    raise ProtocolError("OCR attachment has no image path")
+                attachment = context_manager.add(OcrProvider().convert(source.path))
+                _write_event(output_stream, Event("complete", request.request_id, {
+                    "attachment": attachment.to_wire(),
+                    "sourceAttachmentId": source.id,
+                }), output_lock)
+            elif request.type == "context.remove":
+                if not request.attachment_id:
+                    raise ProtocolError("context.remove requires attachmentId")
+                removed = context_manager.remove(request.attachment_id)
+                _write_event(output_stream, Event("complete", request.request_id, {
+                    "removed": removed,
+                    "attachmentId": request.attachment_id,
+                }), output_lock)
             else:
                 for event in _handle_local_request(request, registry):
                     _write_event(output_stream, event, output_lock)
@@ -253,3 +329,4 @@ def run(input_stream: TextIO, output_stream: TextIO) -> None:
         if worker.is_alive():
             engine.cancel(request_id)
         worker.join(timeout=4)
+    context_manager.cleanup_all()
