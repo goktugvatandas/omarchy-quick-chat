@@ -114,6 +114,9 @@ assert "SearchableDropdown" in profile_settings, (
 assert "modelDiscoveryRequested" in profile_settings, (
     "profile settings must expose model discovery and refresh"
 )
+assert "if (!visible || !activeProfile) return" in profile_settings, (
+    "model discovery must not delay chat while profile settings are hidden"
+)
 assert 'type: "models.list"' in chat_surface, (
     "chat surface must request model catalogs through the bridge"
 )

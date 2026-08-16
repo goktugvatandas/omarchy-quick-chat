@@ -49,8 +49,13 @@ FocusScope {
     customReadOnly.text = (activeProfile.customReadOnlyArgs || []).join("\n")
     customOutput.value = activeProfile.customOutput || "plain"
     transportPicker.value = activeProfile.transport || "process"
+  }
+
+  function discoverCurrentModels(refresh) {
+    if (!visible || !activeProfile) return
     Qt.callLater(function() {
-      root.modelDiscoveryRequested(adapterPicker.value, false)
+      if (root.visible && root.activeProfile)
+        root.modelDiscoveryRequested(adapterPicker.value, Boolean(refresh))
     })
   }
 
@@ -116,7 +121,11 @@ FocusScope {
     }
   }
 
-  onActiveProfileChanged: loadProfile()
+  onActiveProfileChanged: {
+    loadProfile()
+    discoverCurrentModels(false)
+  }
+  onVisibleChanged: discoverCurrentModels(false)
 
   ThemedScrollView {
     id: settingsScroll
