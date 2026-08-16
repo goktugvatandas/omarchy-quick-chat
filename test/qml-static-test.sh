@@ -30,15 +30,33 @@ assert not re.search(
     menu,
     flags=re.DOTALL,
 ), "Quick Chat must not create a full-height click-blocking layer"
-assert "implicitWidth:" in menu and "implicitHeight:" in menu, (
-    "Quick Chat must use a card-sized popup surface"
-)
-assert "WlrKeyboardFocus.OnDemand" in menu, (
-    "Quick Chat must settle on non-modal on-demand focus"
-)
-assert "focusPrimed" in menu and "interval: 75" in menu, (
-    "Quick Chat must use Omarchy's brief keyboard-focus prime on open"
-)
+assert "FloatingWindow {" in menu, "Quick Chat must use a standard desktop window"
+assert "PanelWindow {" not in menu, "Quick Chat must not remain a layer-shell panel"
+assert "Quickshell.Wayland" not in menu
+assert "WlrLayershell" not in menu
+assert "WlrKeyboardFocus" not in menu
+assert "opacity:" not in menu, "Quick Chat must inherit compositor opacity"
+assert 'title: "Quick Chat"' in menu
+assert "implicitWidth: Style.space(620)" in menu
+assert "implicitHeight: Style.space(620)" in menu
+assert "minimumSize: Qt.size(" in menu
+assert 'Hyprland.dispatch("setfloating address:"' in menu
+assert 'Hyprland.dispatch("resizewindowpixel exact 620 620,address:"' in menu
+assert 'Hyprland.dispatch("centerwindow 1,address:"' in menu
+assert 'Hyprland.dispatch("fullscreenstate "' in menu
+assert "window.startSystemMove()" in menu
+assert "quickToplevel.wayland.activate()" in menu
+assert "Number(quickToplevel.lastIpcObject.fullscreen) === 1" in menu
+assert "openingGeneration += 1" in menu
+assert "placedGeneration = openingGeneration" in menu
+assert 'String(candidate.title || "") === "Quick Chat"' in menu
+assert 'String(candidate.address || "").length > 0' in menu
+assert "focusPending && placementTimeout.running" in menu
+assert 'Hyprland.dispatch("setfloating")' not in menu
+assert 'Hyprland.dispatch("fullscreenstate " + next)' not in menu
+assert "property bool expanded" not in menu
+assert "requestedWidth" not in menu and "requestedHeight" not in menu
+assert "focusPrimed" not in menu
 assert "HyprlandFocusGrab" not in menu, (
     "Quick Chat must stay open without preventing focus on other windows"
 )
@@ -57,10 +75,10 @@ assert 'import ".."' in chat_surface, (
     "chat surface must import root-level plugin components"
 )
 assert 'property string activePage: "chat"' in chat_surface, (
-    "expanded mode must use a focused page model"
+    "the standard window must use a focused page model"
 )
 assert "StackLayout {" in chat_surface, (
-    "expanded mode must show one workspace page at a time"
+    "the standard window must show one workspace page at a time"
 )
 assert "historyOpen" not in chat_surface, (
     "history must be a focused page, not a cramped side drawer"
@@ -74,6 +92,19 @@ assert 'root.togglePage("history")' in chat_surface, (
 assert 'root.togglePage("profiles")' in chat_surface, (
     "the settings icon must toggle between settings and chat"
 )
+assert "expandRequested" not in chat_surface
+assert "property bool expanded" not in chat_surface
+assert "toggleExpanded" not in chat_surface
+open_page = re.search(
+    r"function\s+openPage\s*\([^)]*\)\s*\{(.*?)\n\s*\}\n\n\s*function",
+    chat_surface,
+    flags=re.DOTALL,
+)
+assert open_page, "chat surface must keep a page-opening function"
+for forbidden in ("Hyprland", "Style.space", "maximize", "expand", "width", "height"):
+    assert forbidden not in open_page.group(1), (
+        f"opening a page must not change window state through {forbidden}"
+    )
 
 chat_header = (root / "ui/ChatHeader.qml").read_text()
 assert "Dropdown {" not in chat_header, (
@@ -88,6 +119,15 @@ assert 'tooltipText: root.privateMode' in chat_header, (
 assert 'root.privateMode ? "󰈉" : "󰈈"' in chat_header, (
     "private mode must use distinct eye-off and eye icons"
 )
+assert "signal moveRequested()" in chat_header
+assert "signal maximizeRequested()" in chat_header
+assert "property bool maximized" in chat_header
+assert "onPressed: root.moveRequested()" in chat_header
+assert "onDoubleClicked: root.maximizeRequested()" in chat_header
+assert "anchors.right: actions.left" in chat_header, (
+    "the draggable header region must stop before its action buttons"
+)
+assert "expandRequested" not in chat_header and "property bool expanded" not in chat_header
 
 composer = (root / "ui/Composer.qml").read_text()
 assert "HarnessModelPicker {" in composer, (

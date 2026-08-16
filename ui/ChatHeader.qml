@@ -8,7 +8,7 @@ Item {
   property string profileId: "codex"
   property string cliState: "Starting"
   property bool privateMode: false
-  property bool expanded: false
+  property bool maximized: false
   property string activePage: "chat"
   property var profiles: [
     { id: "codex", name: "Codex", icon: "󰚩" },
@@ -20,9 +20,10 @@ Item {
   ]
 
   signal privateChanged(bool enabled)
-  signal expandRequested()
   signal historyRequested()
   signal settingsRequested()
+  signal moveRequested()
+  signal maximizeRequested()
 
   function activeProfile() {
     for (var index = 0; index < root.profiles.length; index += 1) {
@@ -76,6 +77,17 @@ Item {
     }
   }
 
+  MouseArea {
+    id: headerDrag
+    anchors.left: parent.left
+    anchors.right: actions.left
+    anchors.top: parent.top
+    anchors.bottom: parent.bottom
+    cursorShape: Qt.SizeAllCursor
+    onPressed: root.moveRequested()
+    onDoubleClicked: root.maximizeRequested()
+  }
+
   Row {
     id: actions
     anchors.right: parent.right
@@ -117,13 +129,13 @@ Item {
     }
 
     Button {
-      iconText: root.expanded ? "󰁍" : "󰁌"
-      tooltipText: root.expanded ? "Compact view" : "Open workspace"
+      iconText: root.maximized ? "󰖯" : "󰖲"
+      tooltipText: root.maximized ? "Restore window" : "Maximize window"
       foreground: Color.popups.text
       fontFamily: Style.font.menuFamily
       horizontalPadding: Style.spacing.sm
       focusable: true
-      onClicked: root.expandRequested()
+      onClicked: root.maximizeRequested()
     }
   }
 }

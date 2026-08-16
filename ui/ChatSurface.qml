@@ -18,7 +18,7 @@ Item {
   property string profileId: "codex"
   property string conversationId: "conversation-" + Date.now()
   property bool privateMode: false
-  property bool expanded: false
+  property bool maximized: false
   property var chatState: ChatModel.initialState(conversationId, profileId)
   property var profileState: null
   property var historyItems: []
@@ -39,11 +39,11 @@ Item {
   property string clearRequestId: ""
   property string profileSaveRequestId: ""
 
-  signal expandRequested()
+  signal moveRequested()
+  signal maximizeRequested()
 
   function openPage(page) {
     activePage = page
-    if (!expanded) expandRequested()
     Qt.callLater(focusActivePage)
   }
 
@@ -60,11 +60,6 @@ Item {
     if (activePage === "history") historyPage.focusPage()
     else if (activePage === "profiles") profilePage.focusPage()
     else composer.focusInput()
-  }
-
-  function toggleExpanded() {
-    if (expanded) activePage = "chat"
-    expandRequested()
   }
 
   function newRequestId() {
@@ -445,11 +440,6 @@ Item {
     Qt.callLater(focusActivePage)
   }
 
-  onExpandedChanged: {
-    if (!expanded) activePage = "chat"
-    Qt.callLater(focusActivePage)
-  }
-
   onActivePageChanged: Qt.callLater(focusActivePage)
 
   onProfileIdChanged: Qt.callLater(function() {
@@ -533,12 +523,13 @@ Item {
       profiles: root.profileState ? root.profileState.profiles : []
       cliState: bridge.ready ? root.chatState.status : "Starting bridge"
       privateMode: root.privateMode
-      expanded: root.expanded
+      maximized: root.maximized
       activePage: root.activePage
       onPrivateChanged: function(value) { root.privateMode = value }
-      onExpandRequested: root.toggleExpanded()
       onHistoryRequested: root.togglePage("history")
       onSettingsRequested: root.togglePage("profiles")
+      onMoveRequested: root.moveRequested()
+      onMaximizeRequested: root.maximizeRequested()
     }
 
     PanelSeparator {

@@ -50,7 +50,7 @@ omarchy-shell shell listPlugins \
 
 omarchy-shell shell summon "$PLUGIN_ID" '{"profileId":"codex"}'
 wtype "Explain this window"
-wtype -M ctrl -k Return -m ctrl
+wtype -k Return
 omarchy-shell shell hide "$PLUGIN_ID"
 
 capture_fixture compact '{}'
@@ -58,11 +58,12 @@ capture_fixture model-picker '{"acceptanceFixture":"picker"}'
 capture_fixture attachment-preview '{"acceptanceFixture":"attachment"}'
 capture_fixture streamed-answer '{"acceptanceFixture":"streamed"}'
 capture_fixture approval-card '{"acceptanceFixture":"approval"}'
-capture_fixture expanded-settings '{"acceptanceFixture":"settings"}'
+capture_fixture history '{"acceptanceFixture":"history"}'
+capture_fixture settings '{"acceptanceFixture":"settings"}'
 capture_fixture error-state '{"acceptanceFixture":"error"}'
 
 for artifact in \
-  compact model-picker attachment-preview streamed-answer approval-card expanded-settings error-state; do
+  compact model-picker attachment-preview streamed-answer approval-card history settings error-state; do
   test -s "$ARTIFACT_DIR/$artifact.png"
 done
 
