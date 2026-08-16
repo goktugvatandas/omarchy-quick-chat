@@ -68,15 +68,24 @@ class GrokAdapter(JsonProcessAdapter):
             return plain
         event_type = value.get("type")
         if event_type in {"session", "session_start"}:
-            session_id = value.get("session_id")
+            session_id = value.get("session_id") or value.get("sessionId")
             if isinstance(session_id, str):
                 return [AdapterEvent("session", {"sessionId": session_id})]
         if event_type == "text":
-            text = value.get("content") or value.get("text")
+            text = value.get("content") or value.get("text") or value.get("data")
             if isinstance(text, str):
                 return [AdapterEvent("text_delta", {"text": text})]
         if event_type in {"end", "complete"}:
-            return [AdapterEvent("complete", {"stopReason": value.get("reason", "end_turn")})]
+            events: list[AdapterEvent] = []
+            session_id = value.get("session_id") or value.get("sessionId")
+            if isinstance(session_id, str) and session_id:
+                events.append(AdapterEvent("session", {"sessionId": session_id}))
+            events.append(AdapterEvent("complete", {
+                "stopReason": value.get("reason")
+                or value.get("stopReason")
+                or "end_turn",
+            }))
+            return events
         if event_type == "error":
             return [AdapterEvent("error", {"message": str(value.get("message", "Grok failed"))})]
         return []

@@ -371,11 +371,46 @@ def discover_command_models(
 ) -> tuple[ModelOption, ...]:
     output = _run(argv, cwd)
     models: list[ModelOption] = []
+    grok_has_section = style == "grok" and any(
+        _clean(raw_line).lower() == "available models:"
+        for raw_line in output.splitlines()
+    )
+    grok_in_section = not grok_has_section
+    grok_default: str | None = None
 
     for raw_line in output.splitlines():
         line = _clean(raw_line)
         if not line:
             continue
+        if style == "grok":
+            default_match = re.fullmatch(
+                r"default model:\s*([^\s]+)",
+                line,
+                re.IGNORECASE,
+            )
+            if default_match is not None:
+                grok_default = _identifier(default_match.group(1))
+                continue
+            if line.lower() == "available models:":
+                grok_in_section = True
+                continue
+            if not grok_in_section:
+                continue
+            bullet_match = re.fullmatch(
+                r"[*-]\s+([^\s]+)(?:\s+\(default\))?",
+                line,
+                re.IGNORECASE,
+            )
+            if bullet_match is not None:
+                identifier = _identifier(bullet_match.group(1))
+                if identifier is not None:
+                    models.append(ModelOption(
+                        identifier,
+                        identifier,
+                        "",
+                        is_default=identifier == grok_default,
+                    ))
+                continue
         if style == "opencode":
             variants = re.fullmatch(r"variants\s*:\s*(.+)", line, re.IGNORECASE)
             if variants is not None:
@@ -423,9 +458,19 @@ def discover_command_models(
             continue
         description = " · ".join(columns[1:]) if len(columns) > 1 else ""
         if display_label:
-            models.append(ModelOption(identifier, display_label, identifier))
+            models.append(ModelOption(
+                identifier,
+                display_label,
+                identifier,
+                is_default=style == "grok" and identifier == grok_default,
+            ))
         else:
-            models.append(ModelOption(identifier, identifier, description))
+            models.append(ModelOption(
+                identifier,
+                identifier,
+                description,
+                is_default=style == "grok" and identifier == grok_default,
+            ))
 
     discovered = _dedupe(
         _normalize_cursor_models(models) if style == "cursor" else models

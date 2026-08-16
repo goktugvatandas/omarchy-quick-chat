@@ -376,6 +376,43 @@ class RemainingAdapterTests(unittest.TestCase):
         self.assertEqual(cursor_models[1].label, "GPT-5")
         self.assertEqual(cursor_models[1].description, "gpt-5")
 
+    @patch("bridge.quick_chat.model_discovery.subprocess.run")
+    def test_grok_catalog_ignores_login_prose_and_marks_native_default(self, run):
+        run.return_value = Mock(
+            returncode=0,
+            stdout=(
+                "You are logged in with grok.com.\n\n"
+                "Default model: grok-4.6\n\n"
+                "Available models:\n"
+                "  * grok-4.6 (default)\n"
+                "  - grok-4.5\n"
+            ),
+            stderr="",
+        )
+        models = GrokAdapter().discover_models(Path.home())
+        self.assertEqual([model.id for model in models], ["grok-4.6", "grok-4.5"])
+        self.assertTrue(models[0].is_default)
+        self.assertFalse(models[1].is_default)
+
+    def test_grok_current_stream_uses_data_and_camel_case_end_fields(self):
+        adapter = GrokAdapter()
+        text_events = adapter.parse_event(AdapterEvent("stdout", {
+            "text": '{"type":"text","data":"QUICK_CHAT_OK"}',
+        }))
+        end_events = adapter.parse_event(AdapterEvent("stdout", {
+            "text": (
+                '{"type":"end","stopReason":"end_turn",'
+                '"sessionId":"grok-session-current"}'
+            ),
+        }))
+        self.assertEqual(
+            [(event.type, event.data) for event in text_events],
+            [("text_delta", {"text": "QUICK_CHAT_OK"})],
+        )
+        self.assertEqual([event.type for event in end_events], ["session", "complete"])
+        self.assertEqual(end_events[0].data["sessionId"], "grok-session-current")
+        self.assertEqual(end_events[1].data["stopReason"], "end_turn")
+
     def test_process_adapters_never_auto_approve(self):
         calls = [
             OpenCodeAdapter().start(context()),
