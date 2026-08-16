@@ -15,6 +15,8 @@ Item {
     ? manifest.__sourceDir + "/bridge/quick-chat-bridge"
     : ""
 
+  onBridgePathChanged: start()
+
   signal eventReceived(var event)
   signal bridgeFailed(string message)
 

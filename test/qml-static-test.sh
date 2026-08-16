@@ -23,6 +23,9 @@ assert "stdinEnabled: true" in bridge, "bridge process must accept JSONL stdin"
 assert "SplitParser" in bridge, "bridge stdout must be split into lines"
 assert "JSON.stringify(object) + \"\\n\"" in bridge, "send() must write one JSON line"
 assert "stderr: SplitParser" in bridge, "stderr must remain separate"
+assert "onBridgePathChanged: start()" in bridge, (
+    "bridge must start after Omarchy injects the plugin manifest"
+)
 
 chat_surface = (root / "ui/ChatSurface.qml").read_text()
 assert 'import ".."' in chat_surface, (
@@ -45,6 +48,9 @@ assert "watchChanges: true" in service, "service must watch profile configuratio
 assert "GlobalShortcut" in shortcut, "profile shortcut target is required"
 assert 'appid: "community.quick-chat"' in shortcut, "shortcut app id must be immutable"
 assert "Quickshell.execDetached([" in shortcut, "summon must use an argument array"
+assert "onBridgePathChanged:" in service, (
+    "shortcut sync must start after Omarchy injects the plugin manifest"
+)
 
 inline_error = (root / "ui/InlineError.qml").read_text()
 for code in (

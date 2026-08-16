@@ -25,6 +25,10 @@ Item {
     ? manifest.__sourceDir + "/bridge/quick-chat-bridge"
     : ""
 
+  onBridgePathChanged: {
+    if (bridgePath) shortcutSync.running = true
+  }
+
   function loadConfig(content) {
     try {
       var config = JSON.parse(String(content || ""))
