@@ -84,6 +84,7 @@ class Engine:
         if request.type != "run":
             raise ValueError("engine handles only run requests")
         self._claim(request.request_id)
+        adapter = None
         try:
             profile = self.config.profile(request.profile_id or "")
             if profile is None:
@@ -140,6 +141,7 @@ class Engine:
                     else None
                 ),
                 system_instructions=profile.system_instructions,
+                private=request.private,
             )
             invocation = adapter.start(context)
             yield Event("status", request.request_id, {
@@ -361,6 +363,10 @@ class Engine:
             else:
                 yield Event("complete", request.request_id, terminal_data)
         finally:
+            if request.private and adapter is not None:
+                private_cleanup = getattr(adapter, "cleanup_private_session", None)
+                if callable(private_cleanup):
+                    private_cleanup()
             if self.attachment_cleanup is not None:
                 self.attachment_cleanup(tuple(
                     attachment.id for attachment in request.attachments

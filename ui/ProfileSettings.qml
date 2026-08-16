@@ -183,7 +183,7 @@ Rectangle {
         placeholderText: "SUPER ALT, SPACE"
       }
 
-      CheckBox { id: profileUnlimited; text: "Unlimited profile history" }
+      CheckBox { id: profileUnlimited; text: "Use global history limit" }
       TextField {
         id: profileRetention
         Layout.fillWidth: true

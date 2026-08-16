@@ -51,6 +51,7 @@ class AdapterContext:
     attachments: tuple[Attachment, ...] = ()
     session_id: str | None = None
     system_instructions: str = ""
+    private: bool = False
 
 
 class Adapter(Protocol):

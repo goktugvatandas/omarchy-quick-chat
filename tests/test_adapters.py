@@ -2,6 +2,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from bridge.quick_chat.adapters.base import AdapterContext, AdapterEvent
 from bridge.quick_chat.adapters.claude import ClaudeAdapter
@@ -23,6 +24,7 @@ def context(
     session_id=None,
     attachments=(),
     system_instructions="",
+    private=False,
 ):
     return AdapterContext(
         prompt=prompt,
@@ -31,6 +33,7 @@ def context(
         attachments=attachments,
         session_id=session_id,
         system_instructions=system_instructions,
+        private=private,
     )
 
 
@@ -159,6 +162,19 @@ class RemainingAdapterTests(unittest.TestCase):
         self.assertTrue(session_path.startswith(state))
         for forbidden in ("bash", "edit", "write"):
             self.assertNotIn(forbidden, call.argv)
+
+    def test_pi_private_session_is_runtime_scoped_and_cleaned(self):
+        with tempfile.TemporaryDirectory() as runtime:
+            with patch.dict(os.environ, {"XDG_RUNTIME_DIR": runtime}):
+                adapter = PiAdapter()
+                call = adapter.start(context(private=True))
+                session_path = Path(call.argv[call.argv.index("--session") + 1])
+                session_path.touch()
+                self.assertTrue(session_path.is_relative_to(
+                    Path(runtime) / "omarchy-quick-chat"
+                ))
+                adapter.cleanup_private_session()
+                self.assertFalse(session_path.exists())
 
     def test_four_adapter_fixtures_normalize_streams(self):
         fixtures = (

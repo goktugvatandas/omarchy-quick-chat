@@ -18,8 +18,15 @@ class PiAdapter(JsonProcessAdapter):
     def __init__(self, state_dir: Path | None = None) -> None:
         super().__init__()
         self.state_dir = state_dir or PathSet.from_env().state_dir / "pi-sessions"
+        self._private_session_path: Path | None = None
 
-    def _session_path(self, session_id: str | None) -> Path:
+    def _session_path(self, session_id: str | None, private: bool = False) -> Path:
+        if private:
+            directory = PathSet.from_env().capture_dir / "pi-sessions"
+            directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+            directory.chmod(0o700)
+            self._private_session_path = directory / f"{uuid.uuid4()}.jsonl"
+            return self._private_session_path
         if session_id:
             candidate = Path(session_id).expanduser().resolve()
             if candidate.is_relative_to(self.state_dir.resolve()):
@@ -41,7 +48,7 @@ class PiAdapter(JsonProcessAdapter):
                 arguments.extend(("--provider", provider, "--model", model))
             else:
                 arguments.extend(("--model", context.model))
-        session_path = self._session_path(context.session_id)
+        session_path = self._session_path(context.session_id, context.private)
         arguments.extend(("--session", str(session_path)))
         for attachment in context.attachments:
             if attachment.kind == "image" and attachment.path:
@@ -51,6 +58,17 @@ class PiAdapter(JsonProcessAdapter):
             prompt = f"{context.system_instructions}\n\nUser question:\n{context.prompt}"
         arguments.append(prompt)
         return Invocation(tuple(arguments), context.cwd, self.environment(), None)
+
+    def cleanup_private_session(self) -> None:
+        path = self._private_session_path
+        self._private_session_path = None
+        if path is None or path.is_symlink():
+            return
+        path.unlink(missing_ok=True)
+        try:
+            path.parent.rmdir()
+        except OSError:
+            pass
 
     def parse_event(self, event: AdapterEvent) -> list[AdapterEvent]:
         value = self.decode(event)

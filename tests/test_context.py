@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 import time
 import unittest
+from datetime import UTC, datetime
 from pathlib import Path
 
 from bridge.quick_chat.context.app import ActiveAppProvider, ActiveProjectResolver
@@ -13,7 +14,10 @@ from bridge.quick_chat.context.capture import CaptureProvider
 from bridge.quick_chat.context.ocr import OcrProvider
 from bridge.quick_chat.context.omarchy import OmarchyQueryProvider
 from bridge.quick_chat.context.selection import SelectionProvider
+from bridge.quick_chat.history import HistoryStore
+from bridge.quick_chat.models import Conversation, Message
 from bridge.quick_chat.paths import PathSet
+from bridge.quick_chat.storage import ConfigStore
 
 
 class FakeRunner:
@@ -127,6 +131,27 @@ class ContextTests(unittest.TestCase):
         self.assertFalse(old.exists())
         self.assertTrue(link.is_symlink())
         self.assertEqual(outside.read_text(), "keep")
+
+    def test_private_image_turn_leaves_no_history_mapping_or_capture(self):
+        command = ("omarchy", "capture", "screenshot", "windows", "save")
+        runner = FakeRunner({command: (0, f"{self.source}\n", "")})
+        manager = ContextManager(self.paths)
+        attachment = manager.add(CaptureProvider(self.paths, runner=runner).active_window())
+        now = datetime.now(UTC).isoformat()
+        conversation = Conversation(
+            id="private-conversation",
+            title="Private",
+            profile_id="codex",
+            created_at=now,
+            updated_at=now,
+            messages=(Message("user", "private image", now),),
+            cli_sessions={"codex": "private-session"},
+        )
+        history = HistoryStore(self.paths, ConfigStore(self.paths).load())
+        history.upsert(conversation, private=True)
+        manager.remove_many([attachment.id])
+        self.assertFalse(self.paths.history_file.exists())
+        self.assertFalse(attachment.path.exists())
 
 
 if __name__ == "__main__":

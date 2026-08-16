@@ -23,6 +23,18 @@ RowLayout {
   signal expandRequested()
   signal historyRequested()
 
+  function syncSelection() {
+    for (var index = 0; index < root.profiles.length; index += 1) {
+      if (root.profiles[index].id === root.profileId) {
+        profilePicker.currentIndex = index
+        return
+      }
+    }
+  }
+
+  onProfileIdChanged: syncSelection()
+  onProfilesChanged: syncSelection()
+
   spacing: Style.spacing.controlGap
 
   ComboBox {
@@ -32,11 +44,7 @@ RowLayout {
     valueRole: "id"
     model: root.profiles
     onActivated: root.profileSelected(currentValue)
-    Component.onCompleted: {
-      for (var index = 0; index < root.profiles.length; index += 1) {
-        if (root.profiles[index].id === root.profileId) currentIndex = index
-      }
-    }
+    Component.onCompleted: root.syncSelection()
   }
 
   Text {
