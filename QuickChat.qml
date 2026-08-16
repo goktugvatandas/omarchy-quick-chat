@@ -15,7 +15,12 @@ Item {
   property var service: null
   property bool opened: false
   property bool expanded: false
+  property bool focusPrimed: false
   property string openingPayload: "{}"
+
+  function beginFocusPrime() {
+    if (opened && panel.backingWindowVisible) focusPrimeTimer.restart()
+  }
 
   function open(payloadJson) {
     var payload = ({})
@@ -27,7 +32,9 @@ Item {
       root.expanded = true
     else if (payload.acceptanceFixture) root.expanded = false
     if (payload.acceptanceFixture) chat.showAcceptanceFixture(payload.acceptanceFixture)
+    focusPrimed = false
     opened = true
+    beginFocusPrime()
     Qt.callLater(function() { chat.focusActivePage() })
   }
 
@@ -57,8 +64,13 @@ Item {
     color: "transparent"
     WlrLayershell.namespace: "community-quick-chat"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+    WlrLayershell.keyboardFocus: root.opened
+      ? (root.focusPrimed
+          ? WlrKeyboardFocus.OnDemand
+          : WlrKeyboardFocus.Exclusive)
+      : WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
+    onBackingWindowVisibleChanged: root.beginFocusPrime()
 
     BorderSurface {
       id: card
@@ -92,6 +104,25 @@ Item {
         event.accepted = true
       }
     }
+  }
+
+  onOpenedChanged: {
+    if (opened) {
+      focusPrimed = false
+      beginFocusPrime()
+      Qt.callLater(function() {
+        if (root.opened) chat.focusActivePage()
+      })
+    } else {
+      focusPrimeTimer.stop()
+      focusPrimed = false
+    }
+  }
+
+  Timer {
+    id: focusPrimeTimer
+    interval: 75
+    onTriggered: if (root.opened) root.focusPrimed = true
   }
 
 }

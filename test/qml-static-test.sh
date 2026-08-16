@@ -29,11 +29,11 @@ assert not re.search(
 assert "implicitWidth:" in menu and "implicitHeight:" in menu, (
     "Quick Chat must use a card-sized popup surface"
 )
-assert "WlrKeyboardFocus.Exclusive" not in menu, (
-    "Quick Chat must not monopolize keyboard focus"
-)
 assert "WlrKeyboardFocus.OnDemand" in menu, (
-    "Quick Chat must accept focus only when the user interacts with it"
+    "Quick Chat must settle on non-modal on-demand focus"
+)
+assert "focusPrimed" in menu and "interval: 75" in menu, (
+    "Quick Chat must use Omarchy's brief keyboard-focus prime on open"
 )
 assert "HyprlandFocusGrab" not in menu, (
     "Quick Chat must stay open without preventing focus on other windows"
