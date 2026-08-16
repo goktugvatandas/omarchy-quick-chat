@@ -80,9 +80,11 @@ class Engine:
 
             result = self.transport.run(request.request_id, invocation, emit)
             terminal_data: dict[str, object] = {}
+            adapter_error = False
             for adapter_event in normalized:
                 if adapter_event.type in {"complete", "error"}:
                     terminal_data.update(adapter_event.data)
+                    adapter_error = adapter_error or adapter_event.type == "error"
                     continue
                 if adapter_event.type in {
                     "status", "text_delta", "tool_request", "session"
@@ -105,6 +107,11 @@ class Engine:
                     "message": "The CLI exited with an error.",
                     "exitCode": result.exit_code,
                     "diagnostic": result.stderr,
+                })
+            elif adapter_error:
+                yield Event("error", request.request_id, {
+                    "code": "adapter_error",
+                    **terminal_data,
                 })
             else:
                 yield Event("complete", request.request_id, terminal_data)

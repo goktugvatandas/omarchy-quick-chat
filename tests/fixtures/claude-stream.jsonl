@@ -1,0 +1,3 @@
+{"type":"system","subtype":"init","session_id":"session-claude-1"}
+{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"text_delta","text":"Hello from Claude"}}}
+{"type":"result","subtype":"success","is_error":false,"result":"Hello from Claude","session_id":"session-claude-1"}

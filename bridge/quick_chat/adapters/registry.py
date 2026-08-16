@@ -16,6 +16,14 @@ class AdapterRegistry:
             adapter_id: None for adapter_id in ADAPTER_IDS
         }
         self._probe_cache: dict[str, dict[str, object]] = {}
+        if adapters is None:
+            from .claude import ClaudeAdapter
+            from .codex import CodexAdapter
+
+            adapters = {
+                "codex": CodexAdapter(),
+                "claude": ClaudeAdapter(),
+            }
         if adapters:
             for adapter_id, adapter in adapters.items():
                 self.register(adapter_id, adapter)
