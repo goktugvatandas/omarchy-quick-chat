@@ -137,6 +137,29 @@ class JsonLineLoopTests(unittest.TestCase):
         events = [json.loads(line) for line in destination.getvalue().splitlines()]
         self.assertEqual(events[-1]["data"]["code"], "request_too_large")
 
+    def test_profiles_request_returns_six_local_defaults(self):
+        with tempfile.TemporaryDirectory() as root:
+            source = io.StringIO(
+                json.dumps({"type": "profiles", "requestId": "req-profiles"})
+                + "\n"
+            )
+            destination = io.StringIO()
+            environment = {
+                "HOME": str(Path(root) / "home"),
+                "XDG_CONFIG_HOME": str(Path(root) / "config"),
+                "XDG_STATE_HOME": str(Path(root) / "state"),
+                "XDG_RUNTIME_DIR": str(Path(root) / "runtime"),
+            }
+            with patch.dict(os.environ, environment, clear=True):
+                run(source, destination)
+
+        events = [json.loads(line) for line in destination.getvalue().splitlines()]
+        self.assertEqual(events[-1]["type"], "complete")
+        self.assertEqual(
+            [profile["adapterId"] for profile in events[-1]["data"]["config"]["profiles"]],
+            ["codex", "claude", "opencode", "grok", "cursor", "pi"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, Mapping
 
 from .models import require_identifier, require_optional_string
+from .paths import PathSet
 
 
 MAX_REQUEST_BYTES = 1024 * 1024
@@ -134,8 +134,7 @@ class Request:
         if not isinstance(raw_attachments, list):
             raise ProtocolError("attachments must be an array")
 
-        runtime_directory = os.environ.get("XDG_RUNTIME_DIR")
-        runtime_root = Path(runtime_directory or tempfile.gettempdir()) / "omarchy-quick-chat"
+        runtime_root = PathSet.from_env(os.environ).capture_dir
         attachments = tuple(
             Attachment.from_dict(attachment, runtime_root)
             for attachment in raw_attachments
