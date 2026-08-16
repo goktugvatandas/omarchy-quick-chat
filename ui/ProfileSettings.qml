@@ -33,6 +33,11 @@ Rectangle {
       ? "20" : String(activeProfile.historyLimit || 20)
     privateDefault.checked = Boolean(activeProfile.privateByDefault)
     advancedField.text = (activeProfile.advancedArgs || []).join("\n")
+    customExecutable.text = activeProfile.customExecutable || ""
+    customArguments.text = (activeProfile.customArgs || []).join("\n")
+    customStdin.checked = Boolean(activeProfile.customStdin)
+    customReadOnly.text = (activeProfile.customReadOnlyArgs || []).join("\n")
+    customOutput.currentIndex = activeProfile.customOutput === "jsonl" ? 1 : 0
   }
 
   function values() {
@@ -56,7 +61,16 @@ Rectangle {
       privateByDefault: privateDefault.checked,
       advancedArgs: advancedField.text.split("\n").map(function(value) {
         return value.trim()
-      }).filter(Boolean)
+      }).filter(Boolean),
+      customExecutable: customExecutable.text.trim() || null,
+      customArgs: customArguments.text.split("\n").map(function(value) {
+        return value.trim()
+      }).filter(Boolean),
+      customStdin: customStdin.checked,
+      customReadOnlyArgs: customReadOnly.text.split("\n").map(function(value) {
+        return value.trim()
+      }).filter(Boolean),
+      customOutput: customOutput.currentText
     }
   }
 
@@ -95,6 +109,43 @@ Rectangle {
         Layout.preferredHeight: Style.space(90)
         placeholderText: "System instructions"
         wrapMode: TextEdit.Wrap
+      }
+
+      Text {
+        Layout.fillWidth: true
+        visible: adapterPicker.currentText === "custom"
+        text: "Custom command"
+        color: Color.menu.text
+        font.bold: true
+      }
+      TextField {
+        id: customExecutable
+        Layout.fillWidth: true
+        visible: adapterPicker.currentText === "custom"
+        placeholderText: "Executable"
+      }
+      TextArea {
+        id: customArguments
+        Layout.fillWidth: true
+        visible: adapterPicker.currentText === "custom"
+        placeholderText: "Arguments, one per line"
+      }
+      CheckBox {
+        id: customStdin
+        visible: adapterPicker.currentText === "custom"
+        text: "Send prompt on stdin"
+      }
+      TextArea {
+        id: customReadOnly
+        Layout.fillWidth: true
+        visible: adapterPicker.currentText === "custom"
+        placeholderText: "Read-only arguments, one per line"
+      }
+      ComboBox {
+        id: customOutput
+        Layout.fillWidth: true
+        visible: adapterPicker.currentText === "custom"
+        model: ["plain", "jsonl"]
       }
       ComboBox {
         id: directoryStrategy

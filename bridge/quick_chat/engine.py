@@ -26,14 +26,19 @@ class Engine:
         config: Config,
         session_resolver: Callable[[str, str], str | None] | None = None,
         attachment_cleanup: Callable[[tuple[str, ...]], None] | None = None,
+        approval_timeout_seconds: float = 60.0,
     ) -> None:
         self.registry = registry
         self.transport = transport
         self.config = config
         self.session_resolver = session_resolver
         self.attachment_cleanup = attachment_cleanup
+        self.approval_timeout_seconds = approval_timeout_seconds
         self._lock = threading.Lock()
         self._active_request_id: str | None = None
+        self._pending_approvals: dict[
+            tuple[str, str], tuple[threading.Event, list[bool]]
+        ] = {}
 
     def _claim(self, request_id: str) -> None:
         with self._lock:
@@ -52,6 +57,23 @@ class Engine:
                 return False
         return self.transport.cancel(request_id)
 
+    def resolve_approval(
+        self,
+        request_id: str,
+        approval_id: str,
+        approved: bool,
+    ) -> bool:
+        with self._lock:
+            pending = self._pending_approvals.get((request_id, approval_id))
+            if pending is None:
+                return False
+            event, result = pending
+            if result:
+                return False
+            result.append(approved)
+            event.set()
+            return True
+
     def handle(self, request: Request) -> Iterator[Event]:
         if request.type != "run":
             raise ValueError("engine handles only run requests")
@@ -64,7 +86,25 @@ class Engine:
                     "message": "The selected profile no longer exists.",
                 })
                 return
-            adapter = self.registry.get(profile.adapter_id)
+            if profile.adapter_id == "custom":
+                from .adapters.custom import CustomAdapter
+
+                adapter = CustomAdapter(
+                    executable=profile.custom_executable or "",
+                    args=profile.custom_args,
+                    stdin=profile.custom_stdin,
+                    read_only_args=profile.custom_read_only_args,
+                    output=profile.custom_output,
+                )
+            else:
+                adapter = self.registry.get(profile.adapter_id)
+                detection = self.registry.detect(profile.adapter_id)
+                if not detection.get("available", False):
+                    yield Event("error", request.request_id, {
+                        "code": detection.get("code", "not_installed"),
+                        "message": f"{profile.adapter_id} is not available.",
+                    })
+                    return
             cwd_diagnostic = None
             if profile.working_directory_strategy == "fixed":
                 cwd = Path(profile.working_directory or "")
@@ -129,6 +169,7 @@ class Engine:
             worker.start()
             terminal_data: dict[str, object] = {}
             adapter_error = False
+            approval_error: dict[str, object] | None = None
             while not transport_done.is_set() or not normalized.empty():
                 try:
                     adapter_event = normalized.get(timeout=0.05)
@@ -138,6 +179,50 @@ class Engine:
                     terminal_data.update(adapter_event.data)
                     adapter_error = adapter_error or adapter_event.type == "error"
                     continue
+                if adapter_event.type == "tool_request":
+                    approval_id = adapter_event.data.get("approvalId")
+                    if not isinstance(approval_id, str) or not approval_id:
+                        approval_error = {
+                            "code": "approval_not_relayable",
+                            "message": "The CLI requested an invalid approval.",
+                            "continueCommand": list(invocation.argv),
+                        }
+                        self.transport.cancel(request.request_id)
+                        continue
+                    if not adapter.capabilities.relayable_approvals:
+                        approval_error = {
+                            "code": "approval_not_relayable",
+                            "message": "This CLI cannot relay approvals safely in process mode.",
+                            "continueCommand": list(invocation.argv),
+                        }
+                        self.transport.cancel(request.request_id)
+                        continue
+                    approval_event = threading.Event()
+                    approval_result: list[bool] = []
+                    key = (request.request_id, approval_id)
+                    with self._lock:
+                        self._pending_approvals[key] = (approval_event, approval_result)
+                    yield Event("tool_request", request.request_id, adapter_event.data)
+                    resolved = approval_event.wait(self.approval_timeout_seconds)
+                    with self._lock:
+                        self._pending_approvals.pop(key, None)
+                    approved = resolved and bool(approval_result and approval_result[0])
+                    responder = getattr(self.transport, "respond_approval", None)
+                    if responder is None:
+                        approval_error = {
+                            "code": "approval_not_relayable",
+                            "message": "The active transport cannot relay this approval.",
+                            "continueCommand": list(invocation.argv),
+                        }
+                        self.transport.cancel(request.request_id)
+                    else:
+                        responder(request.request_id, approval_id, approved)
+                        if not approved:
+                            approval_error = {
+                                "code": "approval_timeout" if not resolved else "approval_denied",
+                                "message": "The operation was denied.",
+                            }
+                    continue
                 if adapter_event.type in {
                     "status", "text_delta", "tool_request", "session"
                 }:
@@ -145,14 +230,21 @@ class Engine:
             worker.join()
 
             if transport_errors:
+                code = (
+                    "not_installed"
+                    if isinstance(transport_errors[0], FileNotFoundError)
+                    else "transport_failed"
+                )
                 yield Event("error", request.request_id, {
-                    "code": "transport_failed",
+                    "code": code,
                     "message": str(transport_errors[0]),
                 })
                 return
             result = result_holder[0]
 
-            if result.timed_out:
+            if approval_error is not None:
+                yield Event("error", request.request_id, approval_error)
+            elif result.timed_out:
                 yield Event("error", request.request_id, {
                     "code": "timeout",
                     "message": "The CLI did not finish before the timeout.",
@@ -163,11 +255,20 @@ class Engine:
                     "stopReason": "cancelled",
                 })
             elif result.exit_code != 0:
+                diagnostic_lower = result.stderr.lower()
+                authentication_failure = any(pattern in diagnostic_lower for pattern in (
+                    "authentication required",
+                    "not authenticated",
+                    "not logged in",
+                    "login required",
+                ))
                 yield Event("error", request.request_id, {
-                    "code": "cli_failed",
+                    "code": "authentication_required" if authentication_failure else "cli_failed",
                     "message": "The CLI exited with an error.",
                     "exitCode": result.exit_code,
                     "diagnostic": result.stderr,
+                    **({"loginCommand": [invocation.argv[0], "login"]}
+                       if authentication_failure else {}),
                 })
             elif adapter_error:
                 yield Event("error", request.request_id, {

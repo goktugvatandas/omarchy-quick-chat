@@ -6,6 +6,7 @@ from pathlib import Path
 from bridge.quick_chat.adapters.base import AdapterContext, AdapterEvent
 from bridge.quick_chat.adapters.claude import ClaudeAdapter
 from bridge.quick_chat.adapters.codex import CodexAdapter
+from bridge.quick_chat.adapters.custom import CustomAdapter
 from bridge.quick_chat.adapters.cursor import CursorAdapter
 from bridge.quick_chat.adapters.grok import GrokAdapter
 from bridge.quick_chat.adapters.opencode import OpenCodeAdapter
@@ -175,6 +176,48 @@ class RemainingAdapterTests(unittest.TestCase):
                     [event.type for event in events],
                     ["session", "text_delta", "complete"],
                 )
+
+
+class CustomAdapterTests(unittest.TestCase):
+    def test_custom_arguments_are_individual_values(self):
+        adapter = CustomAdapter(
+            executable="ask",
+            args=("--cwd", "{cwd}", "{prompt}"),
+        )
+        call = adapter.start(context(prompt="$(touch nope)"))
+        self.assertEqual(call.argv, (
+            "ask",
+            "--cwd",
+            str(Path.home()),
+            "$(touch nope)",
+        ))
+
+    def test_attachment_placeholder_expands_as_repeated_values(self):
+        adapter = CustomAdapter("ask", args=("{attachments}", "{prompt}"))
+        attachments = (
+            Attachment("one", "image", "/tmp/one.png", None, "image/png"),
+            Attachment("two", "image", "/tmp/two.png", None, "image/png"),
+        )
+        call = adapter.start(context(attachments=attachments))
+        self.assertEqual(call.argv[1:3], ("/tmp/one.png", "/tmp/two.png"))
+
+    def test_partial_unknown_and_shell_templates_are_rejected(self):
+        invalid = (
+            ("ask", ("--prompt={prompt}",)),
+            ("ask", ("{unknown}",)),
+            ("bash", ("-c", "{prompt}")),
+            ("ask", ("|", "other")),
+        )
+        for executable, arguments in invalid:
+            with self.subTest(executable=executable, arguments=arguments):
+                with self.assertRaises(ValueError):
+                    CustomAdapter(executable, args=arguments)
+
+    def test_read_only_arguments_are_appended_individually(self):
+        adapter = CustomAdapter("ask", args=("{prompt}",), read_only_args=("--safe",))
+        call = adapter.start(context())
+        self.assertEqual(call.argv[-1], "--safe")
+        self.assertTrue(adapter.capabilities.read_only_enforced)
 
 
 if __name__ == "__main__":

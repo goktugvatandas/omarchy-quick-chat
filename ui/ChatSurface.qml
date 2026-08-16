@@ -1,3 +1,5 @@
+import Quickshell
+import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
 import qs.Commons
@@ -9,6 +11,7 @@ Item {
   id: root
 
   property var manifest: null
+  property var shell: null
   property string profileId: "codex"
   property string conversationId: "conversation-" + Date.now()
   property bool privateMode: false
@@ -20,6 +23,8 @@ Item {
   property var attachments: []
   property var contextRequests: ({})
   property string pendingPrompt: ""
+  property var pendingApproval: null
+  property string pendingClipboard: ""
   property bool historyOpen: false
   property string profilesRequestId: ""
   property string historyRequestId: ""
@@ -152,6 +157,41 @@ Item {
     })
   }
 
+  function answerApproval(approvalId, approved) {
+    bridge.send({
+      type: approved ? "approve" : "deny",
+      requestId: chatState.activeRequestId,
+      approvalId: approvalId
+    })
+    pendingApproval = null
+  }
+
+  function copyText(value) {
+    pendingClipboard = value
+    clipboardProcess.running = true
+  }
+
+  function handleRecovery(code, data) {
+    if (code === "not_installed" || code === "invalid_working_directory") {
+      if (!expanded) expandRequested()
+    } else if (code === "authentication_required") {
+      copyText((data.loginCommand || []).join(" "))
+    } else if (code === "unsupported_version") {
+      bridge.send({ type: "probe", requestId: newRequestId(), profileId: profileId })
+    } else if (code === "capture_failed") {
+      attachments = []
+    } else if (code === "bridge_exited") {
+      bridge.start()
+    } else if (code === "approval_not_relayable" && data.continueCommand) {
+      if (shell && typeof shell.openTerminal === "function")
+        shell.openTerminal(data.continueCommand)
+      else
+        Quickshell.execDetached(["foot", "-e"].concat(data.continueCommand))
+    } else if (code === "history_recovered" && data.path) {
+      Quickshell.execDetached(["xdg-open", data.path])
+    }
+  }
+
   function retry() {
     if (chatState.running || chatState.activeUserIndex < 0) return
     var requestId = newRequestId()
@@ -202,10 +242,12 @@ Item {
         delete requests[event.requestId]
         root.contextRequests = requests
       } else {
+        if (event.type === "tool_request") root.pendingApproval = event.data
         root.chatState = ChatModel.reduce(root.chatState, event)
         if ((event.type === "complete" || event.type === "error")
             && event.requestId === root.chatState.activeRequestId) {
           root.attachments = []
+          root.pendingApproval = null
           root.historyRequestId = root.newRequestId()
           bridge.send({ type: "history.list", requestId: root.historyRequestId })
         }
@@ -272,6 +314,15 @@ Item {
         error: root.chatState.error
         onDismissed: root.chatState = ChatModel.clearError(root.chatState)
         onRetryRequested: root.retry()
+        onActionRequested: function(code, data) { root.handleRecovery(code, data) }
+      }
+
+      ApprovalCard {
+        Layout.fillWidth: true
+        request: root.pendingApproval
+        adapterName: root.activeProfile() ? root.activeProfile().name : "Agent"
+        onApproveRequested: function(identifier) { root.answerApproval(identifier, true) }
+        onDenyRequested: function(identifier) { root.answerApproval(identifier, false) }
       }
 
       Composer {
@@ -347,6 +398,16 @@ Item {
         if (root.attachments[index].kind === "image")
           root.requestOcr(root.attachments[index].id)
       }
+    }
+  }
+
+  Process {
+    id: clipboardProcess
+    command: ["wl-copy"]
+    stdinEnabled: true
+    onStarted: {
+      write(root.pendingClipboard)
+      root.pendingClipboard = ""
     }
   }
 }

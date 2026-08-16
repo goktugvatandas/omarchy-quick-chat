@@ -57,6 +57,31 @@ class FakeTransport:
         return True
 
 
+class ToolRequestAdapter(FakeAdapter):
+    capabilities = Capabilities(True, True, True, False, True, False)
+
+    def parse_event(self, event):
+        return [AdapterEvent("tool_request", {
+            "approvalId": "approval-1",
+            "title": "Run tool",
+            "operation": "write_file",
+            "details": "/tmp/file",
+        })]
+
+
+class RelayableToolAdapter(ToolRequestAdapter):
+    capabilities = Capabilities(True, True, True, False, True, True)
+
+
+class ApprovalTransport(FakeTransport):
+    def __init__(self):
+        super().__init__()
+        self.responses = []
+
+    def respond_approval(self, request_id, approval_id, approved):
+        self.responses.append((request_id, approval_id, approved))
+
+
 def request(identifier="req-1"):
     return Request.from_dict({
         "type": "run",
@@ -125,6 +150,42 @@ class EngineTests(unittest.TestCase):
         ))
         list(engine.handle(value))
         self.assertEqual(cleaned, ["attachment-1"])
+
+    def test_unrelayable_tool_request_is_denied(self):
+        registry = AdapterRegistry({"codex": ToolRequestAdapter()})
+        events = list(Engine(registry, FakeTransport(), Config.default()).handle(request()))
+        self.assertEqual(events[-1].type, "error")
+        self.assertEqual(events[-1].data["code"], "approval_not_relayable")
+        self.assertIsInstance(events[-1].data["continueCommand"], list)
+
+    def test_relayable_approval_accepts_only_matching_approve_once(self):
+        transport = ApprovalTransport()
+        engine = Engine(
+            AdapterRegistry({"codex": RelayableToolAdapter()}),
+            transport,
+            Config.default(),
+            approval_timeout_seconds=1,
+        )
+        generator = engine.handle(request())
+        self.assertEqual(next(generator).type, "status")
+        approval = next(generator)
+        self.assertEqual(approval.type, "tool_request")
+        self.assertFalse(engine.resolve_approval("req-1", "wrong", True))
+        self.assertTrue(engine.resolve_approval("req-1", "approval-1", True))
+        self.assertEqual(next(generator).type, "complete")
+        self.assertEqual(transport.responses, [("req-1", "approval-1", True)])
+
+    def test_approval_timeout_becomes_deny(self):
+        transport = ApprovalTransport()
+        engine = Engine(
+            AdapterRegistry({"codex": RelayableToolAdapter()}),
+            transport,
+            Config.default(),
+            approval_timeout_seconds=0.01,
+        )
+        events = list(engine.handle(request()))
+        self.assertEqual(events[-1].data["code"], "approval_timeout")
+        self.assertEqual(transport.responses[-1], ("req-1", "approval-1", False))
 
 
 if __name__ == "__main__":

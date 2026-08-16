@@ -72,6 +72,11 @@ class Profile:
     history_limit: int | None = None
     private_by_default: bool = False
     advanced_args: tuple[str, ...] = ()
+    custom_executable: str | None = None
+    custom_args: tuple[str, ...] = ()
+    custom_stdin: bool = False
+    custom_read_only_args: tuple[str, ...] = ()
+    custom_output: Literal["plain", "jsonl"] = "plain"
 
     def __post_init__(self) -> None:
         if not isinstance(self.id, str) or not PROFILE_ID_PATTERN.fullmatch(self.id):
@@ -97,6 +102,15 @@ class Profile:
         if not isinstance(self.private_by_default, bool):
             raise ValueError("privateByDefault must be a boolean")
         _string_tuple("advanced arguments", self.advanced_args)
+        require_optional_string("custom executable", self.custom_executable)
+        _string_tuple("custom arguments", self.custom_args)
+        if not isinstance(self.custom_stdin, bool):
+            raise ValueError("customStdin must be a boolean")
+        _string_tuple("custom read-only arguments", self.custom_read_only_args)
+        if self.custom_output not in {"plain", "jsonl"}:
+            raise ValueError("customOutput must be plain or jsonl")
+        if self.adapter_id == "custom" and not self.custom_executable:
+            raise ValueError("custom profiles require an executable")
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -114,6 +128,11 @@ class Profile:
             "historyLimit": self.history_limit,
             "privateByDefault": self.private_by_default,
             "advancedArgs": list(self.advanced_args),
+            "customExecutable": self.custom_executable,
+            "customArgs": list(self.custom_args),
+            "customStdin": self.custom_stdin,
+            "customReadOnlyArgs": list(self.custom_read_only_args),
+            "customOutput": self.custom_output,
         }
 
     @classmethod
@@ -137,6 +156,13 @@ class Profile:
             history_limit=validate_history_limit(value.get("historyLimit")),
             private_by_default=value.get("privateByDefault", False),
             advanced_args=_string_tuple("advanced arguments", value.get("advancedArgs", [])),
+            custom_executable=value.get("customExecutable"),
+            custom_args=_string_tuple("custom arguments", value.get("customArgs", [])),
+            custom_stdin=value.get("customStdin", False),
+            custom_read_only_args=_string_tuple(
+                "custom read-only arguments", value.get("customReadOnlyArgs", [])
+            ),
+            custom_output=value.get("customOutput", "plain"),
         )
 
 

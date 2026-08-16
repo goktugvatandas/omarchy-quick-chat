@@ -30,6 +30,18 @@ assert "GlobalShortcut" in shortcut, "profile shortcut target is required"
 assert 'appid: "community.quick-chat"' in shortcut, "shortcut app id must be immutable"
 assert "Quickshell.execDetached([" in shortcut, "summon must use an argument array"
 
+inline_error = (root / "ui/InlineError.qml").read_text()
+for code in (
+    "not_installed", "authentication_required", "unsupported_version",
+    "invalid_working_directory", "capture_failed", "timeout",
+    "bridge_exited", "approval_not_relayable", "history_recovered",
+):
+    assert code in inline_error, f"missing recovery action for {code}"
+
+approval = (root / "ui/ApprovalCard.qml").read_text()
+assert "Approve once" in approval
+assert "approve always" not in approval.lower()
+
 for source, name in ((menu, "QuickChat.qml"), (service, "Service.qml")):
     for prop in ("omarchyPath", "shell", "manifest", "pluginRegistry"):
         assert re.search(rf"\bproperty\s+\w+\s+{prop}\b", source), (

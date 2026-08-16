@@ -223,6 +223,7 @@ def run(input_stream: TextIO, output_stream: TextIO) -> None:
 
     for line in input_stream:
         request_id = "bridge"
+        request: Request | None = None
         try:
             if len(line.encode("utf-8")) > MAX_REQUEST_BYTES:
                 raise ProtocolError(
@@ -267,6 +268,21 @@ def run(input_stream: TextIO, output_stream: TextIO) -> None:
                     else {"code": "not_running", "message": "Request is not running."},
                 )
                 _write_event(output_stream, event, output_lock)
+            elif request.type in {"approve", "deny"}:
+                if not request.approval_id:
+                    raise ProtocolError("approvalId is required")
+                resolved = engine.resolve_approval(
+                    request.request_id,
+                    request.approval_id,
+                    request.type == "approve",
+                )
+                _write_event(output_stream, Event(
+                    "status" if resolved else "error",
+                    request.request_id,
+                    {"status": "approval_recorded"}
+                    if resolved
+                    else {"code": "approval_not_pending", "message": "Approval is no longer pending."},
+                ), output_lock)
             elif request.type == "probe" and request.profile_id:
                 profile = config.profile(request.profile_id)
                 if profile is None:
@@ -325,8 +341,12 @@ def run(input_stream: TextIO, output_stream: TextIO) -> None:
             else:
                 for event in _handle_local_request(request, registry):
                     _write_event(output_stream, event, output_lock)
-        except (json.JSONDecodeError, OSError, ProtocolError, ValueError) as error:
-            code = error.code if isinstance(error, ProtocolError) else "invalid_request"
+        except (json.JSONDecodeError, OSError, ProtocolError, RuntimeError, ValueError) as error:
+            code = error.code if isinstance(error, ProtocolError) else (
+                "capture_failed"
+                if request is not None and request.type.startswith("context.")
+                else "invalid_request"
+            )
             _write_event(
                 output_stream,
                 Event(

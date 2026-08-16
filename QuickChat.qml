@@ -84,6 +84,7 @@ Item {
         anchors.bottomMargin: card.contentBottomInset
         anchors.leftMargin: card.contentLeftInset
         manifest: root.manifest
+        shell: root.shell
         expanded: root.expanded
         onExpandRequested: root.expanded = !root.expanded
       }

@@ -6,8 +6,8 @@ import sys
 BRIDGE_DIRECTORY = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(BRIDGE_DIRECTORY))
 
-from quick_chat.main import run  # noqa: E402
+from quick_chat.main import main  # noqa: E402
 
 
 if __name__ == "__main__":
-    run(sys.stdin, sys.stdout)
+    raise SystemExit(main(sys.argv[1:], sys.stdin, sys.stdout))

@@ -108,6 +108,7 @@ class Request:
     attachment_id: str | None = None
     query: str | None = None
     configuration: dict[str, object] | None = None
+    approval_id: str | None = None
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> Request:
@@ -135,6 +136,7 @@ class Request:
                 "attachmentId", value.get("attachmentId")
             )
             query = require_optional_string("query", value.get("query"))
+            approval_id = require_optional_string("approvalId", value.get("approvalId"))
         except ValueError as error:
             raise ProtocolError(str(error)) from error
 
@@ -182,6 +184,7 @@ class Request:
             attachment_id=attachment_id,
             query=query,
             configuration=dict(raw_configuration) if raw_configuration is not None else None,
+            approval_id=approval_id,
         )
 
 
