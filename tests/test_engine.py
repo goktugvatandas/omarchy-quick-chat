@@ -9,6 +9,7 @@ from bridge.quick_chat.adapters.base import (
     AdapterContext,
     AdapterEvent,
     Capabilities,
+    EffortOption,
     Invocation,
 )
 from bridge.quick_chat.adapters.registry import AdapterRegistry
@@ -36,6 +37,11 @@ class FakeAdapter:
         if event.type == "stdout":
             return [AdapterEvent("text_delta", {"text": event.data["text"]})]
         return []
+
+
+class EffortAdapter(FakeAdapter):
+    def effort_options(self, cwd=None):
+        return (EffortOption("low", "Low", "Faster"),)
 
 
 class FakeTransport:
@@ -135,6 +141,60 @@ class EngineTests(unittest.TestCase):
         )
         list(engine.handle(request()))
         self.assertEqual(self.adapter.contexts[0].session_id, "session-existing")
+
+    def test_unsupported_effort_stops_before_transport(self):
+        adapter = EffortAdapter()
+        registry = AdapterRegistry({"codex": adapter})
+        transport = FakeTransport()
+        profile = dataclasses.replace(
+            Config.default().profiles[0],
+            thinking_effort="made-up",
+        )
+        config = dataclasses.replace(
+            Config.default(),
+            profiles=(profile,) + Config.default().profiles[1:],
+        )
+
+        events = list(Engine(registry, transport, config).handle(request()))
+
+        self.assertEqual(events[-1].type, "error")
+        self.assertEqual(events[-1].data["code"], "unsupported_effort")
+        self.assertFalse(transport.entered.is_set())
+        self.assertEqual(adapter.contexts, [])
+
+    def test_supported_effort_reaches_adapter_context(self):
+        adapter = EffortAdapter()
+        registry = AdapterRegistry({"codex": adapter})
+        profile = dataclasses.replace(
+            Config.default().profiles[0],
+            thinking_effort="low",
+        )
+        config = dataclasses.replace(
+            Config.default(),
+            profiles=(profile,) + Config.default().profiles[1:],
+        )
+
+        events = list(Engine(registry, FakeTransport(), config).handle(request()))
+
+        self.assertEqual(events[-1].type, "complete")
+        self.assertEqual(adapter.contexts[0].thinking_effort, "low")
+
+    def test_custom_profile_rejects_effort_without_registry_lookup(self):
+        custom = dataclasses.replace(
+            Config.default().profiles[0],
+            id="custom-test",
+            adapter_id="custom",
+            custom_executable="safe-custom",
+            thinking_effort="low",
+        )
+        config = Config(profiles=(custom,), selected_profile_id=custom.id)
+        custom_request = dataclasses.replace(request(), profile_id=custom.id)
+
+        events = list(
+            Engine(AdapterRegistry({}), FakeTransport(), config).handle(custom_request)
+        )
+
+        self.assertEqual(events[-1].data["code"], "unsupported_effort")
 
     def test_attachments_are_cleaned_after_every_terminal_path(self):
         cleaned = []

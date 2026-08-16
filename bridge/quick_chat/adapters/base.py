@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Protocol
 
+from ..models import validate_thinking_effort
 from ..protocol import Attachment
 
 
@@ -17,6 +18,28 @@ class Capabilities:
     native_images: bool
     read_only_enforced: bool
     relayable_approvals: bool
+    thinking_effort: bool = False
+
+
+@dataclass(frozen=True)
+class EffortOption:
+    id: str
+    label: str
+    description: str = ""
+
+    def __post_init__(self) -> None:
+        validate_thinking_effort(self.id)
+        if not isinstance(self.label, str) or not self.label.strip():
+            raise ValueError("effort label must be a non-empty string")
+        if not isinstance(self.description, str):
+            raise ValueError("effort description must be a string")
+
+    def to_dict(self) -> dict[str, str]:
+        return {
+            "id": self.id,
+            "label": self.label,
+            "description": self.description,
+        }
 
 
 @dataclass(frozen=True)
@@ -24,6 +47,8 @@ class ModelOption:
     id: str
     label: str
     description: str = ""
+    efforts: tuple[EffortOption, ...] | None = None
+    is_default: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.id, str) or not self.id.strip():
@@ -32,12 +57,25 @@ class ModelOption:
             raise ValueError("model label must be a non-empty string")
         if not isinstance(self.description, str):
             raise ValueError("model description must be a string")
+        if self.efforts is not None and (
+            not isinstance(self.efforts, tuple)
+            or not all(isinstance(option, EffortOption) for option in self.efforts)
+        ):
+            raise ValueError("model efforts must be a tuple or null")
+        if not isinstance(self.is_default, bool):
+            raise ValueError("model default flag must be a boolean")
 
-    def to_dict(self) -> dict[str, str]:
+    def to_dict(self) -> dict[str, object]:
         return {
             "id": self.id,
             "label": self.label,
             "description": self.description,
+            "efforts": (
+                None
+                if self.efforts is None
+                else [option.to_dict() for option in self.efforts]
+            ),
+            "isDefault": self.is_default,
         }
 
 
@@ -74,6 +112,10 @@ class AdapterContext:
     session_id: str | None = None
     system_instructions: str = ""
     private: bool = False
+    thinking_effort: str | None = None
+
+    def __post_init__(self) -> None:
+        validate_thinking_effort(self.thinking_effort)
 
 
 class Adapter(Protocol):
@@ -83,6 +125,8 @@ class Adapter(Protocol):
     def detect(self) -> dict[str, object]: ...
 
     def discover_models(self, cwd: Path | None = None) -> tuple[ModelOption, ...]: ...
+
+    def effort_options(self, cwd: Path | None = None) -> tuple[EffortOption, ...]: ...
 
     def start(self, context: AdapterContext) -> Invocation: ...
 

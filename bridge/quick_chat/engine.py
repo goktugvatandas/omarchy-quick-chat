@@ -127,6 +127,27 @@ class Engine:
                 cwd_diagnostic = resolution.diagnostic
             else:
                 cwd = Path.home()
+            if profile.thinking_effort is not None:
+                if profile.adapter_id == "custom":
+                    supported_efforts = ()
+                else:
+                    supported_efforts = self.registry.efforts(
+                        profile.adapter_id,
+                        profile.model,
+                        cwd,
+                    )
+                if profile.thinking_effort not in {
+                    option.id for option in supported_efforts
+                }:
+                    yield Event("error", request.request_id, {
+                        "code": "unsupported_effort",
+                        "message": (
+                            f"{profile.thinking_effort} is not supported by "
+                            f"{profile.adapter_id}."
+                        ),
+                        "resetTo": None,
+                    })
+                    return
             context = AdapterContext(
                 prompt=request.prompt or "",
                 model=profile.model,
@@ -142,6 +163,7 @@ class Engine:
                 ),
                 system_instructions=profile.system_instructions,
                 private=request.private,
+                thinking_effort=profile.thinking_effort,
             )
             invocation = adapter.start(context)
             yield Event("status", request.request_id, {

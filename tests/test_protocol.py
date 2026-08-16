@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from bridge.quick_chat.main import _handle_local_request, run
-from bridge.quick_chat.adapters.base import Capabilities, ModelOption
+from bridge.quick_chat.adapters.base import Capabilities, EffortOption, ModelOption
 from bridge.quick_chat.adapters.registry import AdapterRegistry
 from bridge.quick_chat.protocol import Event, ProtocolError, Request
 
@@ -130,9 +130,18 @@ class FakeModelAdapter:
 
     def discover_models(self, cwd=None):
         return (
-            ModelOption("gpt-5.6-sol", "GPT-5.6 Sol", "Fast coding model"),
+            ModelOption(
+                "gpt-5.6-sol",
+                "GPT-5.6 Sol",
+                "Fast coding model",
+                efforts=(EffortOption("low", "Low"),),
+                is_default=True,
+            ),
             ModelOption("gpt-5.6-terra", "GPT-5.6 Terra", "Balanced coding model"),
         )
+
+    def effort_options(self, cwd=None):
+        return (EffortOption("medium", "Medium"),)
 
 
 class ModelCatalogRequestTests(unittest.TestCase):
@@ -149,6 +158,11 @@ class ModelCatalogRequestTests(unittest.TestCase):
         self.assertEqual(
             [model["id"] for model in events[-1].data["models"]],
             ["gpt-5.6-sol", "gpt-5.6-terra"],
+        )
+        self.assertTrue(events[-1].data["models"][0]["isDefault"])
+        self.assertEqual(
+            events[-1].data["models"][0]["efforts"][0]["id"],
+            "low",
         )
 
 

@@ -7,7 +7,7 @@ import subprocess
 from dataclasses import replace
 from pathlib import Path
 
-from .base import Capabilities, ModelOption
+from .base import Capabilities, EffortOption, ModelOption
 
 
 VERSION_PATTERN = re.compile(r"\d+(?:\.\d+)+")
@@ -16,6 +16,7 @@ VERSION_PATTERN = re.compile(r"\d+(?:\.\d+)+")
 class ProcessAdapterBase:
     executable: str
     _capabilities: Capabilities
+    _effort_options: tuple[EffortOption, ...] = ()
 
     def __init__(self) -> None:
         self._degraded = False
@@ -37,6 +38,9 @@ class ProcessAdapterBase:
 
     def discover_models(self, cwd: Path | None = None) -> tuple[ModelOption, ...]:
         return ()
+
+    def effort_options(self, cwd: Path | None = None) -> tuple[EffortOption, ...]:
+        return self._effort_options
 
     def detect(self) -> dict[str, object]:
         try:

@@ -62,16 +62,24 @@ def _handle_local_request(
             for adapter_id in registry.keys:
                 try:
                     adapter = registry.get(adapter_id)
+                    effort_discovery = getattr(adapter, "effort_options", None)
+                    efforts = (
+                        tuple(effort_discovery())
+                        if callable(effort_discovery)
+                        else ()
+                    )
                     adapter_states.append({
                         "id": adapter_id,
                         "availability": "unknown",
                         "capabilities": asdict(adapter.capabilities),
+                        "efforts": [option.to_dict() for option in efforts],
                     })
                 except KeyError:
                     adapter_states.append({
                         "id": adapter_id,
                         "availability": "unregistered",
                         "capabilities": None,
+                        "efforts": [],
                     })
         events.append(Event("complete", request.request_id, {
             "config": config.to_dict(),

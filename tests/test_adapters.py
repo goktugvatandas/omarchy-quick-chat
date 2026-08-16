@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from bridge.quick_chat.adapters.base import AdapterContext, AdapterEvent
+from bridge.quick_chat.adapters.base import AdapterContext, AdapterEvent, ModelOption
 from bridge.quick_chat.adapters.claude import ClaudeAdapter
 from bridge.quick_chat.adapters.codex import CodexAdapter
 from bridge.quick_chat.adapters.custom import CustomAdapter
@@ -74,6 +74,18 @@ class CodexAdapterTests(unittest.TestCase):
                         "displayName": "GPT-5.6 Sol",
                         "description": "Fast coding model",
                         "hidden": False,
+                        "isDefault": True,
+                        "defaultReasoningEffort": "high",
+                        "supportedReasoningEfforts": [
+                            {
+                                "reasoningEffort": "low",
+                                "description": "Faster",
+                            },
+                            {
+                                "reasoningEffort": "high",
+                                "description": "Deeper",
+                            },
+                        ],
                     },
                     {"model": "hidden", "displayName": "Hidden", "hidden": True},
                 ]
@@ -82,10 +94,22 @@ class CodexAdapterTests(unittest.TestCase):
         models = CodexAdapter().discover_models(Path.home())
         self.assertEqual([model.id for model in models], ["gpt-5.6-sol"])
         self.assertEqual(models[0].label, "GPT-5.6 Sol")
+        self.assertTrue(models[0].is_default)
+        self.assertEqual([item.id for item in models[0].efforts], ["low", "high"])
+        self.assertEqual(
+            models[0].to_dict()["efforts"][1]["description"],
+            "Deeper",
+        )
         self.assertEqual(
             exchange.call_args.args[0], ("codex", "app-server", "--stdio")
         )
         self.assertEqual(exchange.call_args.args[1][-1]["method"], "model/list")
+
+    def test_model_option_distinguishes_adapter_fallback_from_explicit_none(self):
+        fallback = ModelOption("fallback", "Fallback")
+        explicit_none = ModelOption("none", "None", efforts=())
+        self.assertIsNone(fallback.to_dict()["efforts"])
+        self.assertEqual(explicit_none.to_dict()["efforts"], [])
 
     def test_codex_is_read_only_and_accepts_prompt_on_stdin(self):
         call = CodexAdapter().start(context(prompt="explain", model="gpt-5"))

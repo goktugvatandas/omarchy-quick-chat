@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 from typing import Iterable, Mapping
 
-from .adapters.base import ModelOption
+from .adapters.base import EffortOption, ModelOption
 
 
 ANSI_PATTERN = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
@@ -277,10 +277,28 @@ def discover_codex_models(cwd: Path | None = None) -> tuple[ModelOption, ...]:
             continue
         label = row.get("displayName")
         description = row.get("description")
+        effort_rows = row.get("supportedReasoningEfforts")
+        efforts: list[EffortOption] = []
+        if isinstance(effort_rows, list):
+            for effort_row in effort_rows:
+                if not isinstance(effort_row, dict):
+                    continue
+                effort_id = effort_row.get("reasoningEffort")
+                effort_description = effort_row.get("description")
+                try:
+                    efforts.append(EffortOption(
+                        effort_id,
+                        effort_id.capitalize() if isinstance(effort_id, str) else "",
+                        effort_description if isinstance(effort_description, str) else "",
+                    ))
+                except ValueError:
+                    continue
         models.append(ModelOption(
             identifier,
             label if isinstance(label, str) and label else identifier,
             description if isinstance(description, str) else "",
+            efforts=tuple(efforts),
+            is_default=row.get("isDefault") is True,
         ))
 
     discovered = _dedupe(models)

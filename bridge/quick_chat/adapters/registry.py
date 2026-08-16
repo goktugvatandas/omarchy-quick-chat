@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Mapping
 
-from .base import Adapter, ModelOption
+from .base import Adapter, EffortOption, ModelOption
 
 
 ADAPTER_IDS = ("codex", "claude", "opencode", "grok", "cursor", "pi", "custom")
@@ -84,6 +84,35 @@ class AdapterRegistry:
         if key not in self._model_cache:
             self._model_cache[key] = self.get(adapter_id).discover_models(directory)
         return self._model_cache[key]
+
+    def efforts(
+        self,
+        adapter_id: str,
+        model: str | None = None,
+        cwd: Path | None = None,
+    ) -> tuple[EffortOption, ...]:
+        adapter = self.get(adapter_id)
+        effort_discovery = getattr(adapter, "effort_options", None)
+        adapter_efforts = (
+            tuple(effort_discovery(cwd)) if callable(effort_discovery) else ()
+        )
+
+        model_discovery = getattr(adapter, "discover_models", None)
+        if not callable(model_discovery):
+            return adapter_efforts
+
+        models = self.models(adapter_id, cwd)
+        selected = next(
+            (
+                option
+                for option in models
+                if option.id == model or (model is None and option.is_default)
+            ),
+            None,
+        )
+        if selected is not None and selected.efforts is not None:
+            return selected.efforts
+        return adapter_efforts
 
     def acp_transport(
         self,
