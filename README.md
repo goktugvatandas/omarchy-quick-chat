@@ -30,11 +30,11 @@ commands.
 
 ## Use
 
-Press `SUPER+ALT+SPACE` to open the default Codex profile. `Ctrl+Enter` sends;
-plain Enter adds a line. Escape hides the popup without cancelling the active
-turn, so reopening restores it. Use Expand to switch between the full-width
-Chat, History, and Profiles pages. Each named profile can have its own
-Hyprland shortcut.
+Press `SUPER+ALT+SPACE` to open the default Codex profile. Enter sends;
+`Ctrl+Enter` adds a line. Escape hides the popup without cancelling the active
+turn, so reopening restores it. History and Settings open from their header
+icons, and the picker beside the prompt switches agents and models. Each named
+profile can have its own Hyprland shortcut.
 
 Quick Chat also adds a searchable **Quick Chat** action to the root Omarchy
 menu. The entry is merged idempotently into the user menu extension without

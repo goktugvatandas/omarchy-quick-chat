@@ -11,11 +11,15 @@ import sys
 root = pathlib.Path(sys.argv[1])
 menu = (root / "QuickChat.qml").read_text()
 service = (root / "Service.qml").read_text()
+readme = (root / "README.md").read_text()
 
 assert re.search(r"\bItem\s*\{", menu), "QuickChat.qml root must be an Item"
 assert re.search(r"\bItem\s*\{", service), "Service.qml root must be an Item"
 assert re.search(r"\bfunction\s+open\s*\(", menu), "menu must implement open()"
 assert re.search(r"\bfunction\s+close\s*\(", menu), "menu must implement close()"
+assert "Enter sends;\n`Ctrl+Enter` adds a line." in readme, (
+    "usage documentation must match the composer key behavior"
+)
 assert 'import "ui"' in menu, "menu must import its local UI component directory"
 assert re.search(r"\bproperty\s+var\s+service\b", menu), (
     "menu must expose the paired service for shortcut diagnostics"
@@ -92,6 +96,18 @@ assert "HarnessModelPicker {" in composer, (
 assert "Qt.Key_Tab" in composer and "agentPicker.focusTrigger()" in composer, (
     "keyboard users must be able to move from the prompt to its adjacent picker"
 )
+assert "function insertNewline()" in composer, (
+    "the composer must own deterministic multiline insertion"
+)
+assert re.search(
+    r"event\.modifiers\s*&\s*Qt\.ControlModifier\)\s*\{\s*root\.insertNewline\(\)",
+    composer,
+), "Ctrl+Enter must insert a newline"
+assert re.search(
+    r"else\s*\{\s*if\s*\(!root\.running\s*&&\s*prompt\.text\.trim\(\)\)\s*"
+    r"root\.sendRequested\(prompt\.text\)",
+    composer,
+), "Enter without Ctrl must send"
 
 harness_picker = (root / "ui/HarnessModelPicker.qml").read_text()
 assert "QQC.Popup {" in harness_picker, (

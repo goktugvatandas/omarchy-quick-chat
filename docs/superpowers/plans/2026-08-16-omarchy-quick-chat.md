@@ -569,7 +569,7 @@ Use a card-sized centered `PanelWindow` on the overlay layer with exclusive keyb
 
 - [ ] **Step 6: Implement keyboard-first compact chat controls**
 
-Header shows the active profile, CLI state, and private toggle. Composer supports `Ctrl+Enter` to send, plain Enter for a newline, and disables Send during a run. Message list renders text with selectable `Text`, never rich-text links that execute automatically. Stop sends `{type:"cancel", requestId:<active>}`. `Esc` hides the window without cancelling and reopening restores state.
+Header shows the active profile, CLI state, and private toggle. Composer supports Enter to send, `Ctrl+Enter` for a newline, and disables Send during a run. Message list renders text with selectable `Text`, never rich-text links that execute automatically. Stop sends `{type:"cancel", requestId:<active>}`. `Esc` hides the window without cancelling and reopening restores state.
 
 - [ ] **Step 7: Run model and static tests**
 

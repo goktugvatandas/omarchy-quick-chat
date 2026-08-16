@@ -28,6 +28,14 @@ ColumnLayout {
     agentPicker.open()
   }
 
+  function insertNewline() {
+    var start = Math.min(prompt.selectionStart, prompt.selectionEnd)
+    var end = Math.max(prompt.selectionStart, prompt.selectionEnd)
+    if (start !== end) prompt.remove(start, end)
+    prompt.insert(start, "\n")
+    prompt.cursorPosition = start + 1
+  }
+
   spacing: Style.spacing.controlGap
 
   ThemedTextArea {
@@ -43,9 +51,12 @@ ColumnLayout {
       if (event.key === Qt.Key_Tab && event.modifiers === Qt.NoModifier) {
         agentPicker.focusTrigger()
         event.accepted = true
-      } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
-          && (event.modifiers & Qt.ControlModifier)) {
-        if (!root.running && prompt.text.trim()) root.sendRequested(prompt.text)
+      } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+        if (event.modifiers & Qt.ControlModifier) {
+          root.insertNewline()
+        } else {
+          if (!root.running && prompt.text.trim()) root.sendRequested(prompt.text)
+        }
         event.accepted = true
       }
     }
@@ -133,6 +144,7 @@ ColumnLayout {
       visible: !root.running
       enabled: prompt.text.trim().length > 0
       text: "Send"
+      tooltipText: "Send with Enter · new line with Ctrl+Enter"
       foreground: Color.popups.text
       fontFamily: Style.font.menuFamily
       bordered: true
