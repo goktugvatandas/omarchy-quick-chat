@@ -81,10 +81,16 @@ assert "ToggleSwitch {" not in chat_header, (
 assert 'tooltipText: root.privateMode' in chat_header, (
     "the private icon must expose its current state accessibly"
 )
+assert 'root.privateMode ? "󰈉" : "󰈈"' in chat_header, (
+    "private mode must use distinct eye-off and eye icons"
+)
 
 composer = (root / "ui/Composer.qml").read_text()
 assert "HarnessModelPicker {" in composer, (
     "the unified agent/model picker must sit beside the prompt controls"
+)
+assert "tabChangesFocus: true" in composer, (
+    "keyboard users must be able to move from the prompt to its adjacent picker"
 )
 
 harness_picker = (root / "ui/HarnessModelPicker.qml").read_text()

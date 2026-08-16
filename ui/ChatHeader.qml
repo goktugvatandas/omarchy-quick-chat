@@ -83,7 +83,7 @@ Item {
     spacing: Style.spacing.sm
 
     Button {
-      iconText: root.privateMode ? "󰌾" : "󰌿"
+      iconText: root.privateMode ? "󰈉" : "󰈈"
       tooltipText: root.privateMode
         ? "Private conversation on" : "Private conversation off"
       selected: root.privateMode

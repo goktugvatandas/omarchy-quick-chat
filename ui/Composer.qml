@@ -24,6 +24,10 @@ ColumnLayout {
     prompt.forceActiveFocus()
   }
 
+  function openAgentPicker() {
+    agentPicker.open()
+  }
+
   spacing: Style.spacing.controlGap
 
   ThemedTextArea {
@@ -34,6 +38,7 @@ ColumnLayout {
     wrapMode: TextEdit.Wrap
     textFormat: TextEdit.PlainText
     selectByMouse: true
+    tabChangesFocus: true
 
     Keys.onPressed: function(event) {
       if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
@@ -49,6 +54,7 @@ ColumnLayout {
     spacing: Style.spacing.sm
 
     HarnessModelPicker {
+      id: agentPicker
       Layout.preferredWidth: Style.space(270)
       Layout.minimumWidth: Style.space(190)
       Layout.maximumWidth: Style.space(320)

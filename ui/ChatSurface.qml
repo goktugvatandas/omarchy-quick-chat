@@ -247,6 +247,8 @@ Item {
       : name === "history" ? "history"
       : "chat"
     Qt.callLater(focusActivePage)
+    if (name === "picker")
+      Qt.callLater(function() { composer.openAgentPicker() })
   }
 
   function sendPrompt(prompt) {
