@@ -66,10 +66,10 @@ spacing, borders, and control states all follow the active Omarchy theme.
 
 Quick Chat also adds a searchable **Quick Chat** action to the root Omarchy
 menu. The entry is merged idempotently into the user menu extension without
-replacing existing entries or comments, and is hidden while the plugin is
-disabled. Current Omarchy releases render all stock root rows before extension
-rows, so Quick Chat is the first custom row. The planned relative-order hook
-will default it immediately after Apps and let users choose another position.
+replacing existing entries or comments, is sorted immediately after Apps, and
+is hidden while the plugin is disabled. It remains a root item rather than
+being nested inside the Apps submenu. Search aliases are `quick-chat`, `chat`,
+and `ask`.
 
 The window has no full-screen backdrop or click-blocking scrim. It requests
 focus when summoned but does not hold focus, so it can stay visible while you
@@ -91,6 +91,12 @@ tools:
 - `grok`
 - `cursor-agent`
 - `pi`
+
+Cursor requires each working directory to be trusted once in its native CLI.
+Quick Chat deliberately never passes `--trust`, `--force`, or `--yolo`; either
+trust the profile directory interactively or configure a dedicated trusted
+fixed directory. Pi requires at least one provider login before it can return a
+model catalog: run `pi`, use `/login`, then refresh the Pi models in Quick Chat.
 
 Quick Chat does not store API keys or provider credentials. A missing,
 unauthenticated, unsupported, or degraded CLI is shown as an actionable inline
