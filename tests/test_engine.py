@@ -1,0 +1,100 @@
+import os
+import tempfile
+import threading
+import unittest
+from pathlib import Path
+
+from bridge.quick_chat.adapters.base import (
+    AdapterContext,
+    AdapterEvent,
+    Capabilities,
+    Invocation,
+)
+from bridge.quick_chat.adapters.registry import AdapterRegistry
+from bridge.quick_chat.engine import BusyError, Engine
+from bridge.quick_chat.models import Config
+from bridge.quick_chat.protocol import Request
+from bridge.quick_chat.transports.base import RunResult
+
+
+class FakeAdapter:
+    id = "codex"
+    capabilities = Capabilities(True, True, True, False, True, False)
+
+    def detect(self):
+        return {"available": True, "version": "test"}
+
+    def start(self, context: AdapterContext):
+        return Invocation(("fake",), context.cwd, {"PATH": ""}, context.prompt)
+
+    def parse_event(self, event: AdapterEvent):
+        if event.type == "stdout":
+            return [AdapterEvent("text_delta", {"text": event.data["text"]})]
+        return []
+
+
+class FakeTransport:
+    def __init__(self, block=False, result=None):
+        self.block = block
+        self.entered = threading.Event()
+        self.release = threading.Event()
+        self.result = result or RunResult(0, "", False, False)
+
+    def run(self, request_id, invocation, emit):
+        self.entered.set()
+        if self.block:
+            self.release.wait(timeout=3)
+        emit(AdapterEvent("stdout", {"text": "answer"}))
+        return self.result
+
+    def cancel(self, request_id):
+        self.release.set()
+        return True
+
+
+def request(identifier="req-1"):
+    return Request.from_dict({
+        "type": "run",
+        "requestId": identifier,
+        "conversationId": "conv-1",
+        "profileId": "codex",
+        "prompt": "question",
+    })
+
+
+class EngineTests(unittest.TestCase):
+    def setUp(self):
+        self.registry = AdapterRegistry({"codex": FakeAdapter()})
+
+    def test_engine_emits_start_delta_and_exactly_one_terminal_event(self):
+        engine = Engine(self.registry, FakeTransport(), Config.default())
+        events = list(engine.handle(request()))
+        self.assertEqual(events[0].data["status"], "starting")
+        self.assertEqual(events[1].type, "text_delta")
+        self.assertEqual(events[-1].type, "complete")
+        self.assertEqual(sum(event.type in {"complete", "error"} for event in events), 1)
+
+    def test_nonzero_exit_is_an_error_and_keeps_stderr_diagnostic(self):
+        transport = FakeTransport(result=RunResult(7, "failed", False, False))
+        events = list(Engine(self.registry, transport, Config.default()).handle(request()))
+        self.assertEqual(events[-1].type, "error")
+        self.assertEqual(events[-1].data["code"], "cli_failed")
+        self.assertEqual(events[-1].data["diagnostic"], "failed")
+
+    def test_second_concurrent_run_is_rejected(self):
+        transport = FakeTransport(block=True)
+        engine = Engine(self.registry, transport, Config.default())
+        first_events = []
+        thread = threading.Thread(
+            target=lambda: first_events.extend(engine.handle(request("req-1")))
+        )
+        thread.start()
+        self.assertTrue(transport.entered.wait(timeout=2))
+        with self.assertRaises(BusyError):
+            list(engine.handle(request("req-2")))
+        transport.release.set()
+        thread.join(timeout=3)
+
+
+if __name__ == "__main__":
+    unittest.main()
