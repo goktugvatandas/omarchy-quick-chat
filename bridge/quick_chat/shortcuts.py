@@ -62,7 +62,7 @@ def _binding_shortcut(binding: dict[str, object]) -> str | None:
 
 
 def _target(profile_id: str) -> str:
-    return f"community.quick-chat:profile-{profile_id}"
+    return f"goktugvatandas.quick-chat:profile-{profile_id}"
 
 
 def _description(profile_name: str) -> str:
@@ -75,7 +75,7 @@ def _owned(
     profile_name: str | None = None,
 ) -> bool:
     argument = binding.get("arg")
-    expected = _target(profile_id) if profile_id is not None else "community.quick-chat:profile-"
+    expected = _target(profile_id) if profile_id is not None else "goktugvatandas.quick-chat:profile-"
     if binding.get("dispatcher") == "global" and isinstance(argument, str) and (
         argument == expected if profile_id is not None else argument.startswith(expected)
     ):
@@ -204,7 +204,7 @@ def sync_shortcuts(
         shortcut = _binding_shortcut(binding)
         if binding.get("dispatcher") == "global":
             argument = str(binding.get("arg"))
-            profile_id = argument.removeprefix("community.quick-chat:profile-")
+            profile_id = argument.removeprefix("goktugvatandas.quick-chat:profile-")
         else:
             profile_id = profile_by_description.get(
                 str(binding.get("description")),

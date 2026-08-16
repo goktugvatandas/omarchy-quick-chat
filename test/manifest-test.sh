@@ -10,7 +10,7 @@ import sys
 root = pathlib.Path(sys.argv[1])
 manifest = json.loads((root / "manifest.json").read_text())
 assert manifest["schemaVersion"] == 1
-assert manifest["id"] == "community.quick-chat"
+assert manifest["id"] == "goktugvatandas.quick-chat"
 assert manifest["kinds"] == ["menu", "service"]
 assert manifest["keepLoaded"] is True
 assert manifest["entryPoints"] == {

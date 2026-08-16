@@ -60,7 +60,7 @@ class ShortcutTests(unittest.TestCase):
         self.assertEqual(result.conflicts, ())
         bind_call = runner.calls[-1]
         self.assertEqual(bind_call[:3], ["hyprctl", "keyword", "bindd"])
-        self.assertIn("community.quick-chat:profile-work", bind_call[3])
+        self.assertIn("goktugvatandas.quick-chat:profile-work", bind_call[3])
 
     def test_lua_config_adds_exact_global_target_through_eval(self):
         work = Profile(
@@ -79,7 +79,7 @@ class ShortcutTests(unittest.TestCase):
             "hyprctl",
             "eval",
             'hl.bind("SUPER + CTRL + K", '
-            'hl.dsp.global("community.quick-chat:profile-work"), '
+            'hl.dsp.global("goktugvatandas.quick-chat:profile-work"), '
             '{ description = "Quick Chat: Work" })',
         ])
 

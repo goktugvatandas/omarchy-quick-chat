@@ -13,7 +13,7 @@
 - Follow the approved design in `docs/superpowers/specs/2026-08-16-standard-window-keyboard-effort-design.md`.
 - Run every repository command through `rtk`; do not invoke shell commands without the `rtk` prefix.
 - Use test-driven development for every production change: add one focused failing assertion, run it and observe the expected failure, add the smallest implementation, then run the focused test and the broader suite.
-- Preserve the plugin id `community.quick-chat`, existing menu integration, six default profiles, 20-item default history, unlimited history via `null`, private-mode non-persistence, explicit approval cards, and read-only adapter behavior.
+- Preserve the plugin id `goktugvatandas.quick-chat`, existing menu integration, six default profiles, 20-item default history, unlimited history via `null`, private-mode non-persistence, explicit approval cards, and read-only adapter behavior.
 - Preserve existing per-profile global summon shortcuts during migration. Fresh schema-2 configs use `SUPER ALT, C`, which is free in the inspected Omarchy bind set; the legacy `SUPER ALT, SPACE` value collides with Omarchy's Apps menu and is reported for existing users instead of being silently rewritten.
 - Never add a layer-shell keyboard grab, background overlay, QML opacity override, persistent Hyprland float rule, always-on-top rule, or page-driven resize.
 - Never synthesize an effort choice. A choice must come from explicit CLI help, an explicit model-catalog field, or an explicit variant/parameter in a discovered model row.
@@ -623,7 +623,7 @@ function close() {
 
 function requestClose() {
   if (shell && typeof shell.hide === "function")
-    shell.hide((manifest && manifest.id) || "community.quick-chat")
+    shell.hide((manifest && manifest.id) || "goktugvatandas.quick-chat")
   else
     window.visible = false
 }
@@ -934,7 +934,7 @@ rtk git commit -m "docs: describe standard keyboard quick chat"
 - Write acceptance artifacts under `test/acceptance/artifacts/` only when that directory remains ignored by Git.
 
 **Interfaces:**
-- The source repository, installed `community.quick-chat` copy, and live Omarchy shell report the same manifest version.
+- The source repository, installed `goktugvatandas.quick-chat` copy, and live Omarchy shell report the same manifest version.
 - Final evidence contains six actual versions/models and explicit desktop check results.
 
 - [ ] **Step 1: Establish a clean repository baseline**
@@ -959,7 +959,7 @@ For any failure, first add a focused failing unit/fixture test, make the smalles
 - [ ] **Step 4: Install the passing source plugin**
 
 Run: `rtk omarchy plugin add file:///home/g2v/Projects/omarchy/omarchy-quick-chat --enable --yes`
-Expected: `community.quick-chat` installed and enabled from this source.
+Expected: `goktugvatandas.quick-chat` installed and enabled from this source.
 
 Reload the Omarchy shell through its supported CLI and verify the plugin list reports the new manifest version. Do not edit the installed copy directly.
 

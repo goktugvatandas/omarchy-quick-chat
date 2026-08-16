@@ -38,7 +38,7 @@ class MenuIntegrationTests(unittest.TestCase):
         self.assertEqual(parsed["personal"]["label"], "Personal")
         self.assertEqual(parsed[MENU_ENTRY_ID]["label"], "Quick Chat")
         self.assertEqual(parsed[MENU_ENTRY_ID]["after"], "apps")
-        self.assertIn("community.quick-chat", parsed[MENU_ENTRY_ID]["action"])
+        self.assertIn("goktugvatandas.quick-chat", parsed[MENU_ENTRY_ID]["action"])
         self.assertEqual(next(iter(parsed)), MENU_ENTRY_ID)
 
         installed = self.path.read_text()

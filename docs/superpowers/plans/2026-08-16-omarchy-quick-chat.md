@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- The repository is a third-party plugin with manifest id `community.quick-chat`; never use the reserved `omarchy.*` namespace.
+- The repository is a third-party plugin with manifest id `goktugvatandas.quick-chat`; never use the reserved `omarchy.*` namespace.
 - Runtime Python uses the standard library only; installation must not run hooks, package managers, `sudo`, or `pkexec`.
 - QML entry points are `Item`s, accept `omarchyPath`, `shell`, `manifest`, and `pluginRegistry`, and implement `open(payloadJson)` and `close()` when they expose a menu surface.
 - Use two-space indentation in QML, JavaScript, JSON, and Bash; use four-space indentation in Python.
@@ -109,7 +109,7 @@ docs/acp-transport.md                   phase-2 ACP lifecycle
 
 **Interfaces:**
 - Consumes: Omarchy manifest schema version 1 and menu/service entry-point injection.
-- Produces: plugin id `community.quick-chat`, entry points `QuickChat.qml` and `Service.qml`, and aggregate command `./test/all`.
+- Produces: plugin id `goktugvatandas.quick-chat`, entry points `QuickChat.qml` and `Service.qml`, and aggregate command `./test/all`.
 
 - [ ] **Step 1: Write the failing manifest contract test**
 
@@ -123,7 +123,7 @@ import json, pathlib, sys
 root = pathlib.Path(sys.argv[1])
 manifest = json.loads((root / "manifest.json").read_text())
 assert manifest["schemaVersion"] == 1
-assert manifest["id"] == "community.quick-chat"
+assert manifest["id"] == "goktugvatandas.quick-chat"
 assert manifest["kinds"] == ["menu", "service"]
 assert manifest["keepLoaded"] is True
 assert manifest["entryPoints"] == {"menu": "QuickChat.qml", "service": "Service.qml"}
@@ -142,7 +142,7 @@ Expected: FAIL because `manifest.json` does not exist.
 ```json
 {
   "schemaVersion": 1,
-  "id": "community.quick-chat",
+  "id": "goktugvatandas.quick-chat",
   "name": "Quick Chat",
   "version": "0.1.0",
   "author": "Omarchy Quick Chat contributors",
@@ -811,7 +811,7 @@ git commit -m "feat: add OpenCode Grok Cursor and Pi adapters"
 
 **Interfaces:**
 - Consumes: profile shortcut strings in normalized `MODIFIERS, KEY` form and `hyprctl -j binds`.
-- Produces: immutable global targets `community.quick-chat:profile-<profile-id>`, live Hyprland `bindd` entries, conflict diagnostics, and menu payload `{profileId:<id>}`.
+- Produces: immutable global targets `goktugvatandas.quick-chat:profile-<profile-id>`, live Hyprland `bindd` entries, conflict diagnostics, and menu payload `{profileId:<id>}`.
 
 - [ ] **Step 1: Write failing shortcut normalization and conflict tests**
 
@@ -833,11 +833,11 @@ Expected: FAIL because shortcut syncing does not exist.
 
 - [ ] **Step 3: Implement shortcut parsing and safe live binding sync**
 
-Accept uppercase modifiers from `{SUPER, ALT, CTRL, SHIFT}` and one Hyprland key token matching `[A-Z0-9_]+`. Read existing bindings with `hyprctl -j binds`. Refuse a chord owned by another command. Apply owned entries with `hyprctl keyword bindd "<mods>,<key>,Quick Chat: <profile>,global,community.quick-chat:profile-<id>"`; remove only previously recorded Quick Chat entries with the exact matching chord and target.
+Accept uppercase modifiers from `{SUPER, ALT, CTRL, SHIFT}` and one Hyprland key token matching `[A-Z0-9_]+`. Read existing bindings with `hyprctl -j binds`. Refuse a chord owned by another command. Apply owned entries with `hyprctl keyword bindd "<mods>,<key>,Quick Chat: <profile>,global,goktugvatandas.quick-chat:profile-<id>"`; remove only previously recorded Quick Chat entries with the exact matching chord and target.
 
 - [ ] **Step 4: Implement the keep-loaded shortcut service**
 
-`Service.qml` imports `Quickshell.Hyprland`, loads profile shortcut targets through `ShortcutDelegate.qml`, and starts shortcut sync after delegates exist. Each delegate has immutable `appid: "community.quick-chat"`, `name: "profile-" + profileId`, and on press executes `omarchy-shell shell summon community.quick-chat <payload-json>` with an argument array.
+`Service.qml` imports `Quickshell.Hyprland`, loads profile shortcut targets through `ShortcutDelegate.qml`, and starts shortcut sync after delegates exist. Each delegate has immutable `appid: "goktugvatandas.quick-chat"`, `name: "profile-" + profileId`, and on press executes `omarchy-shell shell summon goktugvatandas.quick-chat <payload-json>` with an argument array.
 
 - [ ] **Step 5: Implement profile CRUD and settings validation**
 
@@ -942,7 +942,7 @@ git commit -m "feat: add safe approvals and custom adapters"
 #!/bin/bash
 set -euo pipefail
 
-PLUGIN_ID="community.quick-chat"
+PLUGIN_ID="goktugvatandas.quick-chat"
 omarchy plugin add "$QUICK_CHAT_REPO" --enable --yes
 omarchy-shell shell listPlugins | jq -e --arg id "$PLUGIN_ID" '.[] | select(.id == $id and .enabled == true)'
 omarchy-shell shell summon "$PLUGIN_ID" '{"profileId":"codex"}'

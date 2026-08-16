@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-16  
 **Status:** Approved design, pending implementation plan  
-**Scope:** `community.quick-chat` Omarchy shell plugin
+**Scope:** `goktugvatandas.quick-chat` Omarchy shell plugin
 
 ## Summary
 
@@ -394,7 +394,7 @@ Against the installed plugin and active Hyprland session:
 ## Rollout and Completion
 
 The work lands in small commits grouped around config/adapter behavior, window
-behavior, keyboard UI, and verification. The installed `community.quick-chat`
+behavior, keyboard UI, and verification. The installed `goktugvatandas.quick-chat`
 copy is refreshed only after repository tests pass. Completion requires:
 
 - the complete automated suite passing;

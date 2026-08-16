@@ -18,10 +18,10 @@ LEGACY_MENU_ENTRY = {
     "description": "Ask Codex, Claude Code, OpenCode, Grok, Cursor, or Pi",
     "aliases": ["quick-chat", "chat", "ask"],
     "when": (
-        "jq -e 'any(.plugins[]?; .id == \"community.quick-chat\")' "
+        "jq -e 'any(.plugins[]?; .id == \"goktugvatandas.quick-chat\")' "
         '"$HOME/.config/omarchy/shell.json" >/dev/null'
     ),
-    "action": "omarchy-shell shell summon community.quick-chat '{}'",
+    "action": "omarchy-shell shell summon goktugvatandas.quick-chat '{}'",
 }
 MENU_ENTRY = {
     "icon": "󰚩",
@@ -34,10 +34,10 @@ MENU_ENTRY = {
     "description": "Ask Codex, Claude Code, OpenCode, Grok, Cursor, or Pi",
     "aliases": ["quick-chat", "chat", "ask"],
     "when": (
-        "jq -e 'any(.plugins[]?; .id == \"community.quick-chat\")' "
+        "jq -e 'any(.plugins[]?; .id == \"goktugvatandas.quick-chat\")' "
         '"$HOME/.config/omarchy/shell.json" >/dev/null'
     ),
-    "action": "omarchy-shell shell summon community.quick-chat '{}'",
+    "action": "omarchy-shell shell summon goktugvatandas.quick-chat '{}'",
 }
 
 

@@ -500,7 +500,7 @@ service = (root / "Service.qml").read_text()
 shortcut = (root / "ShortcutDelegate.qml").read_text()
 assert "watchChanges: true" in service, "service must watch profile configuration"
 assert "GlobalShortcut" in shortcut, "profile shortcut target is required"
-assert 'appid: "community.quick-chat"' in shortcut, "shortcut app id must be immutable"
+assert 'appid: "goktugvatandas.quick-chat"' in shortcut, "shortcut app id must be immutable"
 assert "Quickshell.execDetached([" in shortcut, "summon must use an argument array"
 assert "onBridgePathChanged:" in service, (
     "shortcut sync must start after Omarchy injects the plugin manifest"

@@ -65,7 +65,7 @@ Item {
     placementTimeout.stop()
     focusRetry.stop()
     if (shell && typeof shell.hide === "function")
-      shell.hide((manifest && manifest.id) || "community.quick-chat")
+      shell.hide((manifest && manifest.id) || "goktugvatandas.quick-chat")
     else
       window.visible = false
   }

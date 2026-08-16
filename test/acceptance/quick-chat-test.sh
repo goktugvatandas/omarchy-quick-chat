@@ -7,7 +7,7 @@ if [[ "${QUICK_CHAT_DISPOSABLE:-}" != "1" ]]; then
 fi
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-PLUGIN_ID="community.quick-chat"
+PLUGIN_ID="goktugvatandas.quick-chat"
 QUICK_CHAT_REPO="${QUICK_CHAT_REPO:-file://$ROOT}"
 ARTIFACT_DIR="${QUICK_CHAT_ARTIFACT_DIR:-$ROOT/test/acceptance/artifacts}"
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"

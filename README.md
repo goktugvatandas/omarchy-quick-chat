@@ -22,7 +22,18 @@ default summoned by the main shortcut and the menu entry.
 omarchy plugin add https://github.com/goktugvatandas/omarchy-quick-chat.git --enable
 ```
 
-Update or remove the plugin with Omarchy's normal `omarchy plugin` commands.
+Update or remove with the normal Omarchy plugin commands:
+
+```bash
+omarchy plugin update goktugvatandas.quick-chat
+omarchy plugin remove goktugvatandas.quick-chat
+```
+
+Removal deletes the installed plugin; its runtime Hyprland shortcuts stop
+working immediately and disappear on the next Hyprland reload. Your
+configuration and history stay in `$XDG_CONFIG_HOME/omarchy/quick-chat` and
+`$XDG_STATE_HOME/omarchy/quick-chat`; delete those directories to remove every
+trace.
 
 ## Use
 

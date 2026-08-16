@@ -9,13 +9,13 @@ Item {
   required property string profileName
 
   GlobalShortcut {
-    appid: "community.quick-chat"
+    appid: "goktugvatandas.quick-chat"
     name: "profile-" + root.profileId
     onPressed: Quickshell.execDetached([
       "omarchy-shell",
       "shell",
       "summon",
-      "community.quick-chat",
+      "goktugvatandas.quick-chat",
       JSON.stringify({ profileId: root.profileId })
     ])
   }
