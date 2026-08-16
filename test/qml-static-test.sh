@@ -100,6 +100,9 @@ assert "QQC.Popup {" in harness_picker, (
 assert "expandedProfileId" in harness_picker, (
     "configured harness rows must expand to reveal their models"
 )
+assert 'root.expandedProfileId = ""' in harness_picker, (
+    "opening the picker must keep every harness immediately reachable"
+)
 assert "modelDiscoveryRequested" in harness_picker, (
     "expanding a harness must trigger live model discovery"
 )
@@ -110,6 +113,9 @@ assert "selectionRequested" in harness_picker, (
 message_list = (root / "ui/MessageList.qml").read_text()
 assert "TextEdit {" in message_list and "readOnly: true" in message_list, (
     "message text must use a selectable read-only text type"
+)
+assert "verticalScrollBarEnabled: messages.length > 0" in message_list, (
+    "an empty transcript must not render a meaningless scrollbar"
 )
 
 attachment_preview = (root / "ui/AttachmentPreview.qml").read_text()

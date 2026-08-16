@@ -68,9 +68,15 @@ function buildRows(options) {
   var errors = input.errors || {}
   var query = text(input.query)
   var rows = []
+  var visibleProfiles = profiles
 
-  for (var index = 0; index < profiles.length; index += 1) {
-    var profile = profiles[index] || {}
+  if (expandedProfileId) {
+    var expandedProfile = profileById(profiles, expandedProfileId)
+    visibleProfiles = expandedProfile ? [expandedProfile] : []
+  }
+
+  for (var index = 0; index < visibleProfiles.length; index += 1) {
+    var profile = visibleProfiles[index] || {}
     var profileId = text(profile.id)
     var adapterId = text(profile.adapterId) || "custom"
     var expanded = profileId === expandedProfileId

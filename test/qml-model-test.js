@@ -72,12 +72,26 @@ const pickerRows = HarnessPickerModel.buildRows({
   errors: {}
 })
 assert.deepEqual(pickerRows.map(row => row.kind), [
-  "harness", "model", "model", "model", "harness"
+  "harness", "model", "model", "model"
 ])
 assert.equal(pickerRows[1].label, "CLI default")
 assert.equal(pickerRows[2].selected, true)
 assert.equal(pickerRows[2].profileId, "codex")
 assert.equal(pickerRows[2].modelId, "gpt-5.6-sol")
+
+const harnessRows = HarnessPickerModel.buildRows({
+  profiles: pickerProfiles,
+  activeProfileId: "codex",
+  expandedProfileId: "",
+  catalogs: pickerCatalogs,
+  query: "",
+  loadingAdapters: {},
+  errors: {}
+})
+assert.deepEqual(
+  harnessRows.map(row => [row.kind, row.profileId]),
+  [["harness", "codex"], ["harness", "claude"]]
+)
 
 const filteredPickerRows = HarnessPickerModel.buildRows({
   profiles: pickerProfiles,

@@ -5,12 +5,16 @@ import qs.Commons
 Controls.ScrollView {
   id: root
 
+  property bool verticalScrollBarEnabled: true
+
   clip: true
   contentWidth: availableWidth
 
   Controls.ScrollBar.vertical: Controls.ScrollBar {
     id: verticalBar
-    policy: Controls.ScrollBar.AsNeeded
+    policy: root.verticalScrollBarEnabled
+      ? Controls.ScrollBar.AsNeeded
+      : Controls.ScrollBar.AlwaysOff
 
     contentItem: Rectangle {
       implicitWidth: Style.space(5)

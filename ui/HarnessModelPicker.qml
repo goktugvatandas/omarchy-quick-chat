@@ -70,12 +70,33 @@ Item {
   function toggleHarness(identifier) {
     if (root.expandedProfileId === identifier) {
       root.expandedProfileId = ""
+      root.filterText = ""
+      Qt.callLater(function() {
+        root.selectActiveHarness()
+        resultList.forceActiveFocus()
+      })
       return
     }
     root.filterText = ""
     root.expandedProfileId = identifier
     root.requestProfileModels(identifier, false)
-    Qt.callLater(function() { searchField.forceActiveFocus() })
+    Qt.callLater(function() {
+      resultList.currentIndex = 0
+      resultList.positionViewAtBeginning()
+      searchField.forceActiveFocus()
+    })
+  }
+
+  function selectActiveHarness() {
+    for (var index = 0; index < root.rows.length; index += 1) {
+      if (root.rows[index].kind === "harness"
+          && String(root.rows[index].profileId) === root.profileId) {
+        resultList.currentIndex = index
+        resultList.positionViewAtIndex(index, ListView.Contain)
+        return
+      }
+    }
+    resultList.currentIndex = root.rows.length > 0 ? 0 : -1
   }
 
   function activateRow(index) {
@@ -244,11 +265,10 @@ Item {
 
       onOpened: {
         root.filterText = ""
-        root.expandedProfileId = root.profileId
-        root.requestProfileModels(root.profileId, false)
+        root.expandedProfileId = ""
         root.rebuildRows()
-        resultList.currentIndex = 0
-        Qt.callLater(function() { searchField.forceActiveFocus() })
+        root.selectActiveHarness()
+        Qt.callLater(function() { resultList.forceActiveFocus() })
       }
       onClosed: root.filterText = ""
 
@@ -258,7 +278,10 @@ Item {
         Item {
           id: searchHeader
           width: parent.width
-          height: Style.spacing.popupRowHeight + Style.spacing.controlPaddingX
+          visible: root.expandedProfileId !== ""
+          height: visible
+            ? Style.spacing.popupRowHeight + Style.spacing.controlPaddingX
+            : 0
 
           TextField {
             id: searchField
@@ -378,7 +401,8 @@ Item {
 
                 Text {
                   text: modelData.kind === "harness"
-                    ? String(modelData.icon || "󰚩")
+                    ? (root.expandedProfileId
+                      ? "󰁍" : String(modelData.icon || "󰚩"))
                     : (modelData.kind === "model"
                       ? (modelData.selected ? "󰄬" : "󰘦")
                       : (modelData.error ? "󰅚" : "󰔟"))
@@ -444,7 +468,8 @@ Item {
 
                 Text {
                   visible: modelData.kind === "harness"
-                  text: modelData.expanded ? "󰅃" : "󰅀"
+                    && root.expandedProfileId === ""
+                  text: "󰅀"
                   color: Qt.darker(root.foreground, 1.2)
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.body

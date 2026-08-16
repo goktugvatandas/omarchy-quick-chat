@@ -6,6 +6,7 @@ ThemedScrollView {
   id: root
 
   property var messages: []
+  verticalScrollBarEnabled: messages.length > 0
 
   ListView {
     id: messageView
