@@ -59,7 +59,10 @@ ThemedScrollView {
           y: Style.spacing.controlPaddingY
           width: bubble.width - Style.spacing.controlPaddingY * 2
           text: messageRow.modelData.text || ""
-          textFormat: Text.PlainText
+          // Agents answer in Markdown; render it for assistant messages.
+          // User input stays plain so typed characters are never reinterpreted.
+          textFormat: messageRow.fromUser
+            ? TextEdit.PlainText : TextEdit.MarkdownText
           wrapMode: TextEdit.Wrap
           readOnly: true
           color: Color.popups.text
@@ -68,6 +71,13 @@ ThemedScrollView {
           selectionColor: Style.selectionFillFor(Color.popups.text, Color.accent)
           selectedTextColor: Color.popups.text
           selectByMouse: true
+          onLinkActivated: function(link) { Qt.openUrlExternally(link) }
+
+          HoverHandler {
+            enabled: !messageRow.fromUser
+            cursorShape: messageText.hoveredLink
+              ? Qt.PointingHandCursor : Qt.IBeamCursor
+          }
         }
       }
     }

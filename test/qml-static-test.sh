@@ -301,6 +301,16 @@ assert "root.agentShortcut" in message_list, (
 assert "messageRow.width - width : 0" in message_list, (
     "user bubbles must right-align and size to content"
 )
+assert "TextEdit.MarkdownText" in message_list, (
+    "assistant replies must render agent Markdown"
+)
+assert re.search(
+    r"messageRow\.fromUser\s*\n?\s*\? TextEdit\.PlainText : TextEdit\.MarkdownText",
+    message_list,
+), "typed user input must never be reinterpreted as markup"
+assert "Qt.openUrlExternally(link)" in message_list, (
+    "markdown links must open in the default browser"
+)
 assert "measure.implicitWidth" in message_list, (
     "user bubbles must hug their content instead of spanning full width"
 )

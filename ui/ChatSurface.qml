@@ -352,6 +352,21 @@ Item {
         ],
         cliSessions: {}
       })
+    } else if (name === "markdown") {
+      chatState = ChatModel.loadConversation(chatState, {
+        id: conversationId,
+        profileId: profileId,
+        messages: [
+          { role: "user", content: "Summarize *markdown* support" },
+          { role: "assistant", content: "## Markdown support\n\n"
+            + "Assistant replies render **bold**, *italics*, and `inline code`.\n\n"
+            + "- Bullet lists\n- [Links](https://omarchy.org)\n\n"
+            + "1. Numbered lists\n2. Stay numbered\n\n"
+            + "```bash\nomarchy plugin list\n```\n\n"
+            + "> Quotes render as block quotes." }
+        ],
+        cliSessions: {}
+      })
     } else if (name === "approval") {
       pendingApproval = {
         approvalId: "fixture-approval",
