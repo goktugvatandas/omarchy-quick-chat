@@ -188,6 +188,7 @@ FocusScope {
 
         FormField {
           Layout.fillWidth: true
+          Layout.preferredWidth: 1
           label: "Name"
           TextField {
             id: nameField
@@ -200,6 +201,7 @@ FocusScope {
 
         FormField {
           Layout.fillWidth: true
+          Layout.preferredWidth: 1
           label: "Icon"
           TextField {
             id: iconField
@@ -212,6 +214,7 @@ FocusScope {
 
         FormField {
           Layout.fillWidth: true
+          Layout.preferredWidth: 1
           label: "Harness"
           Dropdown {
             id: adapterPicker
@@ -232,6 +235,7 @@ FocusScope {
 
         FormField {
           Layout.fillWidth: true
+          Layout.preferredWidth: 1
           label: "Model"
           ColumnLayout {
             width: parent.width
@@ -301,6 +305,7 @@ FocusScope {
 
         FormField {
           Layout.fillWidth: true
+          Layout.preferredWidth: 1
           label: "Transport"
           Dropdown {
             id: transportPicker
@@ -315,6 +320,7 @@ FocusScope {
 
         FormField {
           Layout.fillWidth: true
+          Layout.preferredWidth: 1
           label: "Permission"
           Dropdown {
             id: permissionPicker
@@ -359,6 +365,7 @@ FocusScope {
 
         FormField {
           Layout.fillWidth: true
+          Layout.preferredWidth: 1
           label: "Working directory"
           Dropdown {
             id: directoryStrategy
@@ -377,6 +384,7 @@ FocusScope {
 
         FormField {
           Layout.fillWidth: true
+          Layout.preferredWidth: 1
           label: "Shortcut"
           TextField {
             id: shortcutField
@@ -459,6 +467,7 @@ FocusScope {
         Toggle {
           id: privateDefault
           Layout.fillWidth: true
+          Layout.preferredWidth: 1
           label: "Private by default"
           description: "Do not write Quick Chat history"
           foreground: Color.popups.text
@@ -469,6 +478,7 @@ FocusScope {
         Toggle {
           id: profileUnlimited
           Layout.fillWidth: true
+          Layout.preferredWidth: 1
           label: "Use global retention"
           description: "Ignore a profile-specific limit"
           foreground: Color.popups.text
@@ -478,6 +488,7 @@ FocusScope {
 
         FormField {
           Layout.fillWidth: true
+          Layout.preferredWidth: 1
           label: "Profile history limit"
           TextField {
             id: profileRetention
@@ -493,6 +504,7 @@ FocusScope {
         Toggle {
           id: globalUnlimited
           Layout.fillWidth: true
+          Layout.preferredWidth: 1
           label: "Unlimited global history"
           description: "Keep conversations until cleared"
           foreground: Color.popups.text
@@ -524,6 +536,7 @@ FocusScope {
 
         FormField {
           Layout.fillWidth: true
+          Layout.preferredWidth: 1
           label: "Executable"
           TextField {
             id: customExecutable
@@ -536,6 +549,7 @@ FocusScope {
 
         FormField {
           Layout.fillWidth: true
+          Layout.preferredWidth: 1
           label: "Output"
           Dropdown {
             id: customOutput
@@ -550,6 +564,7 @@ FocusScope {
 
         FormField {
           Layout.fillWidth: true
+          Layout.preferredWidth: 1
           label: "Arguments"
           ThemedTextArea {
             id: customArguments
@@ -561,6 +576,7 @@ FocusScope {
 
         FormField {
           Layout.fillWidth: true
+          Layout.preferredWidth: 1
           label: "Read-only arguments"
           ThemedTextArea {
             id: customReadOnly
