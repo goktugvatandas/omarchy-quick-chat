@@ -23,6 +23,13 @@ assert "SplitParser" in bridge, "bridge stdout must be split into lines"
 assert "JSON.stringify(object) + \"\\n\"" in bridge, "send() must write one JSON line"
 assert "stderr: SplitParser" in bridge, "stderr must remain separate"
 
+service = (root / "Service.qml").read_text()
+shortcut = (root / "ShortcutDelegate.qml").read_text()
+assert "watchChanges: true" in service, "service must watch profile configuration"
+assert "GlobalShortcut" in shortcut, "profile shortcut target is required"
+assert 'appid: "community.quick-chat"' in shortcut, "shortcut app id must be immutable"
+assert "Quickshell.execDetached([" in shortcut, "summon must use an argument array"
+
 for source, name in ((menu, "QuickChat.qml"), (service, "Service.qml")):
     for prop in ("omarchyPath", "shell", "manifest", "pluginRegistry"):
         assert re.search(rf"\bproperty\s+\w+\s+{prop}\b", source), (

@@ -1,0 +1,5 @@
+#!/bin/bash
+set -euo pipefail
+if [[ "$*" == "-j binds" ]]; then
+  printf '%s\n' "${QUICK_CHAT_FAKE_BINDS:-[]}"
+fi

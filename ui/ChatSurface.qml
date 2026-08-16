@@ -25,6 +25,7 @@ Item {
   property string historyRequestId: ""
   property string historyGetRequestId: ""
   property string clearRequestId: ""
+  property string profileSaveRequestId: ""
 
   signal expandRequested()
   signal historyRequested()
@@ -68,6 +69,16 @@ Item {
     conversationId = "conversation-" + Date.now()
     chatState = ChatModel.initialState(conversationId, profileId)
     historyOpen = false
+  }
+
+  function saveProfiles(nextState) {
+    profileState = nextState
+    profileSaveRequestId = newRequestId()
+    bridge.send({
+      type: "profiles.save",
+      requestId: profileSaveRequestId,
+      config: ProfileModel.serialize(nextState)
+    })
   }
 
   function sendPrompt(prompt) {
@@ -181,6 +192,9 @@ Item {
       } else if (event.type === "complete" && event.requestId === root.clearRequestId) {
         root.historyItems = []
         root.newConversation()
+      } else if (event.type === "complete" && event.requestId === root.profileSaveRequestId) {
+        root.profileState = ProfileModel.normalize(event.data.config)
+        if (!root.activeProfile()) root.profileId = root.profileState.selectedId
       } else if (event.type === "complete" && root.contextRequests[event.requestId]) {
         if (event.data.attachment)
           root.attachments = root.attachments.concat([event.data.attachment])
@@ -281,7 +295,21 @@ Item {
       profileState: root.profileState
       activeProfile: root.activeProfile()
       onHistoryLimitChanged: function(value) {
-        root.profileState = ProfileModel.setHistoryLimit(root.profileState, value)
+        root.saveProfiles(ProfileModel.setHistoryLimit(root.profileState, value))
+      }
+      onProfilePatchRequested: function(values) {
+        root.saveProfiles(ProfileModel.update(root.profileState, {
+          profileId: root.profileId,
+          values: values
+        }))
+      }
+      onDuplicateRequested: root.saveProfiles(
+        ProfileModel.duplicate(root.profileState, root.profileId)
+      )
+      onRemoveRequested: {
+        var next = ProfileModel.remove(root.profileState, root.profileId, true)
+        root.profileId = next.selectedId
+        root.saveProfiles(next)
       }
     }
   }

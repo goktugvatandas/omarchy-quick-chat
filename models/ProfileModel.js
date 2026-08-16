@@ -45,11 +45,54 @@ function update(state, patch) {
   return next
 }
 
+function duplicate(state, profileId) {
+  var source = state.profiles.find(function(profile) { return profile.id === profileId })
+  if (!source) throw new Error("profile not found")
+  var base = profileId + "-copy"
+  var candidate = base
+  var suffix = 2
+  while (state.profiles.some(function(profile) { return profile.id === candidate })) {
+    candidate = base + "-" + suffix
+    suffix += 1
+  }
+  var next = copy(state)
+  var duplicated = Object.assign({}, copy(source), {
+    id: candidate,
+    name: source.name + " Copy",
+    shortcut: null
+  })
+  next.profiles.push(duplicated)
+  return next
+}
+
+function remove(state, profileId, confirmed) {
+  if (!confirmed) throw new Error("profile removal requires confirmation")
+  if (state.profiles.length <= 1) throw new Error("at least one profile is required")
+  var next = copy(state)
+  next.profiles = next.profiles.filter(function(profile) { return profile.id !== profileId })
+  if (next.profiles.length === state.profiles.length) throw new Error("profile not found")
+  if (next.selectedId === profileId) next.selectedId = next.profiles[0].id
+  return next
+}
+
+function serialize(state) {
+  return {
+    schemaVersion: state.schemaVersion || 1,
+    selectedProfileId: state.selectedId,
+    historyLimit: state.historyLimit,
+    defaultShortcut: state.defaultShortcut,
+    profiles: copy(state.profiles)
+  }
+}
+
 if (typeof module !== "undefined") {
   module.exports = {
     normalize: normalize,
     defaults: defaults,
     setHistoryLimit: setHistoryLimit,
-    update: update
+    update: update,
+    duplicate: duplicate,
+    remove: remove,
+    serialize: serialize
   }
 }

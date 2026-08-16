@@ -61,6 +61,7 @@ class Profile:
     id: str
     name: str
     adapter_id: str
+    icon: str = ""
     model: str | None = None
     system_instructions: str = ""
     working_directory_strategy: Literal["home", "fixed", "active-project"] = "home"
@@ -77,6 +78,8 @@ class Profile:
             raise ValueError("profile id has an invalid format")
         require_identifier("profile name", self.name)
         require_identifier("adapter id", self.adapter_id)
+        if not isinstance(self.icon, str):
+            raise ValueError("profile icon must be a string")
         require_optional_string("model", self.model)
         if not isinstance(self.system_instructions, str):
             raise ValueError("system instructions must be a string")
@@ -100,6 +103,7 @@ class Profile:
             "id": self.id,
             "name": self.name,
             "adapterId": self.adapter_id,
+            "icon": self.icon,
             "model": self.model,
             "systemInstructions": self.system_instructions,
             "workingDirectoryStrategy": self.working_directory_strategy,
@@ -120,6 +124,7 @@ class Profile:
             id=value.get("id"),
             name=value.get("name"),
             adapter_id=value.get("adapterId"),
+            icon=value.get("icon", ""),
             model=value.get("model"),
             system_instructions=value.get("systemInstructions", ""),
             working_directory_strategy=value.get("workingDirectoryStrategy", "home"),

@@ -45,6 +45,10 @@ assert.throws(() => ProfileModel.setHistoryLimit(profiles, 0))
 assert.equal(ProfileModel.update(profiles, {
   profileId: "work", values: { model: "gpt-5" }
 }).profiles[0].model, "gpt-5")
+const duplicated = ProfileModel.duplicate(profiles, "work")
+assert.equal(duplicated.profiles[1].id, "work-copy")
+assert.equal(ProfileModel.duplicate(duplicated, "work").profiles[2].id, "work-copy-2")
+assert.throws(() => ProfileModel.remove(profiles, "work", false))
 
 const loaded = ChatModel.loadConversation(ChatModel.initialState("new", "codex"), {
   id: "saved",

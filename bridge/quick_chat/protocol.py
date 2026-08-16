@@ -21,6 +21,7 @@ REQUEST_TYPES = frozenset({
     "deny",
     "probe",
     "profiles",
+    "profiles.save",
     "history.list",
     "history.get",
     "history.clear",
@@ -106,6 +107,7 @@ class Request:
     mode: str | None = None
     attachment_id: str | None = None
     query: str | None = None
+    configuration: dict[str, object] | None = None
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> Request:
@@ -142,6 +144,9 @@ class Request:
         confirm = value.get("confirm", False)
         if not isinstance(confirm, bool):
             raise ProtocolError("confirm must be a boolean")
+        raw_configuration = value.get("config")
+        if raw_configuration is not None and not isinstance(raw_configuration, dict):
+            raise ProtocolError("config must be an object")
         raw_attachments = value.get("attachments", [])
         if not isinstance(raw_attachments, list):
             raise ProtocolError("attachments must be an array")
@@ -176,6 +181,7 @@ class Request:
             mode=mode,
             attachment_id=attachment_id,
             query=query,
+            configuration=dict(raw_configuration) if raw_configuration is not None else None,
         )
 
 

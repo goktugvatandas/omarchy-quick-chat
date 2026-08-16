@@ -19,10 +19,11 @@ from .context.ocr import OcrProvider
 from .context.omarchy import OmarchyQueryProvider
 from .context.selection import SelectionProvider
 from .history import HistoryStore
-from .models import Conversation, Message
+from .models import Config, Conversation, Message
 from .paths import PathSet
 from .protocol import Event, MAX_REQUEST_BYTES, ProtocolError, Request
 from .storage import ConfigStore
+from .shortcuts import sync_shortcuts
 from .transports.process import ProcessTransport
 
 
@@ -73,6 +74,15 @@ def _handle_local_request(
         events.append(Event("complete", request.request_id, {
             "config": config.to_dict(),
             "adapters": adapter_states,
+        }))
+        return events
+    if request.type == "profiles.save":
+        if request.configuration is None:
+            raise ProtocolError("profiles.save requires config")
+        updated = Config.from_dict(request.configuration)
+        config_store.save(updated)
+        events.append(Event("complete", request.request_id, {
+            "config": updated.to_dict(),
         }))
         return events
     if request.type == "history.list":
@@ -332,3 +342,27 @@ def run(input_stream: TextIO, output_stream: TextIO) -> None:
             engine.cancel(request_id)
         worker.join(timeout=4)
     context_manager.cleanup_all()
+
+
+def main(
+    arguments: list[str],
+    input_stream: TextIO,
+    output_stream: TextIO,
+) -> int:
+    if arguments == ["shortcuts", "sync"]:
+        paths = PathSet.from_env()
+        config = ConfigStore(paths).load()
+        result = sync_shortcuts(config)
+        output_stream.write(json.dumps({
+            "conflicts": [asdict(conflict) for conflict in result.conflicts],
+            "applied": list(result.applied),
+            "removed": list(result.removed),
+        }) + "\n")
+        output_stream.flush()
+        return 0
+    if arguments:
+        output_stream.write(json.dumps({"error": "unsupported bridge command"}) + "\n")
+        output_stream.flush()
+        return 2
+    run(input_stream, output_stream)
+    return 0
