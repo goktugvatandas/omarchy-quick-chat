@@ -229,8 +229,13 @@ assert composer.count("focusable: true") >= 6, (
 )
 
 themed_text_area = (root / "ui/ThemedTextArea.qml").read_text()
-assert "tabChangesFocus: true" in themed_text_area, (
-    "multiline settings fields must not trap keyboard focus"
+assert "tabChangesFocus" not in themed_text_area
+assert "property bool tabMovesFocus: true" in themed_text_area
+assert "function moveTabFocus(forward)" in themed_text_area
+assert "root.nextItemInFocusChain(forward)" in themed_text_area
+assert "Qt.Key_Backtab" in themed_text_area and "Qt.ShiftModifier" in themed_text_area
+assert "tabMovesFocus: false" in composer, (
+    "the composer must retain its explicit Tab and Shift+Tab destinations"
 )
 
 harness_picker = (root / "ui/HarnessModelPicker.qml").read_text()

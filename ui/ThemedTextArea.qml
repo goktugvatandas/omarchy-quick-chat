@@ -8,6 +8,7 @@ Controls.TextArea {
 
   property color foreground: Color.popups.text
   property color accent: Color.accent
+  property bool tabMovesFocus: true
   readonly property bool hot: activeFocus || hovered
   readonly property var controlBorder: Border.controlSpec(
     activeFocus ? "focus" : (hovered ? "hover-cursor" : "normal"),
@@ -22,11 +23,25 @@ Controls.TextArea {
   selectionColor: Style.selectionFillFor(foreground, accent)
   selectedTextColor: foreground
   selectByMouse: true
-  tabChangesFocus: true
   leftPadding: Style.spacing.controlPaddingX + Border.left(controlBorder)
   rightPadding: Style.spacing.controlPaddingX + Border.right(controlBorder)
   topPadding: Style.spacing.inputPaddingY + Border.top(controlBorder)
   bottomPadding: Style.spacing.inputPaddingY + Border.bottom(controlBorder)
+
+  function moveTabFocus(forward) {
+    var next = root.nextItemInFocusChain(forward)
+    if (next && next !== root) next.forceActiveFocus()
+  }
+
+  Keys.onPressed: function(event) {
+    if (!root.tabMovesFocus) return
+    var backwards = event.key === Qt.Key_Backtab
+      || (event.key === Qt.Key_Tab && (event.modifiers & Qt.ShiftModifier))
+    var forwards = event.key === Qt.Key_Tab && event.modifiers === Qt.NoModifier
+    if (!backwards && !forwards) return
+    root.moveTabFocus(!backwards)
+    event.accepted = true
+  }
 
   background: BorderSurface {
     color: Style.controlFill(root.activeFocus, root.hovered, root.foreground, root.accent)
