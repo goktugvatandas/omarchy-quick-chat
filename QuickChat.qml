@@ -43,6 +43,7 @@ Item {
     focusPending = true
     quickToplevel = null
     closingFromHost = false
+    chat.focusComposer()
     window.visible = true
     Hyprland.refreshToplevels()
     placementTimeout.restart()
@@ -130,8 +131,10 @@ Item {
     focusPending = false
     placementTimeout.stop()
     focusRetry.stop()
+    // The activation event can land seconds after summon. By then the user
+    // may have navigated to another page, so only focus what is showing.
     Qt.callLater(function() {
-      if (window.visible) chat.focusComposer()
+      if (window.visible) chat.focusActivePage()
     })
   }
 

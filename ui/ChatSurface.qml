@@ -716,7 +716,6 @@ Item {
       ProfileSettings {
         id: profilePage
         profileState: root.profileState
-        activeProfile: root.activeProfile()
         modelOptions: root.modelsFor(editingAdapterId)
         adapterStates: root.adapterStates
         modelsLoading: root.modelsLoadingFor(editingAdapterId)
@@ -732,19 +731,30 @@ Item {
         onUiShortcutsChanged: function(shortcuts) {
           root.saveProfiles(ProfileModel.setUiShortcuts(root.profileState, shortcuts))
         }
-        onProfilePatchRequested: function(values) {
+        onProfilePatchRequested: function(profileId, values) {
           root.saveProfiles(ProfileModel.update(root.profileState, {
-            profileId: root.profileId,
+            profileId: profileId,
             values: values
           }))
         }
-        onDuplicateRequested: root.saveProfiles(
-          ProfileModel.duplicate(root.profileState, root.profileId)
-        )
-        onRemoveRequested: {
-          var next = ProfileModel.remove(root.profileState, root.profileId, true)
-          root.profileId = next.selectedId
+        onCreateRequested: {
+          var next = ProfileModel.create(root.profileState)
           root.saveProfiles(next)
+          profilePage.openEditor(next.profiles[next.profiles.length - 1].id)
+        }
+        onDefaultChanged: function(profileId) {
+          root.saveProfiles(ProfileModel.setDefault(root.profileState, profileId))
+        }
+        onDuplicateRequested: function(profileId) {
+          var next = ProfileModel.duplicate(root.profileState, profileId)
+          root.saveProfiles(next)
+          profilePage.openEditor(next.profiles[next.profiles.length - 1].id)
+        }
+        onRemoveRequested: function(profileId) {
+          var next = ProfileModel.remove(root.profileState, profileId, true)
+          if (root.profileId === profileId) root.profileId = next.selectedId
+          root.saveProfiles(next)
+          profilePage.closeEditor()
         }
       }
     }
@@ -755,15 +765,23 @@ Item {
     anchors.fill: parent
     message: "Clear all Quick Chat history? CLI-owned sessions are not deleted."
     confirmText: "Clear"
+    onOpenedChanged: if (opened) forceActiveFocus()
+    Keys.onPressed: function(event) {
+      if (handleKey(event)) event.accepted = true
+    }
     background: Color.popups.background
     foreground: Color.popups.text
     scrim: Util.alpha(Color.popups.background, 0.72)
     selectedBackground: Style.selectedFillFor(Color.popups.text, Color.accent)
     selectedText: Style.selectedStateColor(Color.popups.text, Color.accent)
     fontFamily: Style.font.menuFamily
-    onCanceled: opened = false
+    onCanceled: {
+      opened = false
+      Qt.callLater(root.focusActivePage)
+    }
     onConfirmed: {
       opened = false
+      Qt.callLater(root.focusActivePage)
       root.clearRequestId = root.newRequestId()
       bridge.send({
         type: "history.clear",
@@ -779,6 +797,10 @@ Item {
     message: "This profile cannot receive images in process mode. Convert them to text or switch profile."
     cancelText: "Switch profile"
     confirmText: "Convert to text"
+    onOpenedChanged: if (opened) forceActiveFocus()
+    Keys.onPressed: function(event) {
+      if (handleKey(event)) event.accepted = true
+    }
     background: Color.popups.background
     foreground: Color.popups.text
     scrim: Util.alpha(Color.popups.background, 0.72)
@@ -788,6 +810,7 @@ Item {
     onCanceled: {
       opened = false
       root.pendingPrompt = ""
+      Qt.callLater(root.focusActivePage)
     }
     onConfirmed: {
       opened = false

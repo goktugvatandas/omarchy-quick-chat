@@ -52,6 +52,20 @@ const duplicated = ProfileModel.duplicate(profiles, "work")
 assert.equal(duplicated.profiles[1].id, "work-copy")
 assert.equal(ProfileModel.duplicate(duplicated, "work").profiles[2].id, "work-copy-2")
 assert.throws(() => ProfileModel.remove(profiles, "work", false))
+const createdLaunchers = ProfileModel.create(profiles)
+assert.equal(createdLaunchers.profiles.length, 2)
+assert.equal(createdLaunchers.profiles[1].id, "launcher")
+assert.equal(createdLaunchers.profiles[1].name, "New launcher")
+assert.equal(createdLaunchers.profiles[1].adapterId, "codex")
+assert.equal(createdLaunchers.profiles[1].model, null)
+assert.equal(createdLaunchers.profiles[1].shortcut, null)
+assert.equal(ProfileModel.create(createdLaunchers).profiles[2].id, "launcher-2")
+assert.equal(createdLaunchers.selectedId, "work")
+assert.equal(
+  ProfileModel.setDefault(createdLaunchers, "launcher").selectedId,
+  "launcher"
+)
+assert.throws(() => ProfileModel.setDefault(createdLaunchers, "missing"))
 
 const migratedProfiles = ProfileModel.normalize({
   schemaVersion: 1,

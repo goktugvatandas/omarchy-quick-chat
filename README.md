@@ -7,8 +7,10 @@ desktop toplevel: other windows stay usable, Omarchy can tile or maximize it,
 and Chat, History, and Settings share the current window geometry instead of
 switching to a different shell surface.
 
-The built-in profiles are Codex, Claude Code, OpenCode, Grok, Cursor, and Pi.
-Custom shell-free command profiles are also supported.
+The built-in launchers are Codex, Claude Code, OpenCode, Grok, Cursor, and Pi.
+Custom shell-free command launchers are also supported. Each launcher pairs an
+agent and model with an optional summon shortcut, and one launcher is the
+default summoned by the main shortcut and the menu entry.
 
 ## Install
 
@@ -31,10 +33,18 @@ commands.
 
 ## Use
 
-Fresh installs use `SUPER+ALT+C` to summon the selected profile. Schema-1
+Fresh installs use `SUPER+ALT+C` to summon the default launcher. Schema-1
 configurations migrate automatically and keep their existing global shortcut,
-including the former `SUPER+ALT+SPACE` default. Each named profile can also
-have its own Hyprland shortcut.
+including the former `SUPER+ALT+SPACE` default. Each launcher can also have
+its own Hyprland shortcut.
+
+Settings opens on the launcher list. A row shows each launcher's agent, model,
+and shortcut; the default launcher is marked and any row can be promoted with
+one click. Opening a launcher edits the essentials — name, agent, model,
+shortcut, default, and instructions — while icon, thinking effort, transport,
+permission, workspace, retention, and custom-command fields stay in a
+collapsed Advanced section. Window shortcuts and global history live in their
+own collapsed sections under the list.
 
 Enter sends;
 `Ctrl+Enter` adds a line. `Escape` closes the deepest open picker or dialog,
@@ -103,13 +113,14 @@ unauthenticated, unsupported, or degraded CLI is shown as an actionable inline
 state. Unknown structured output degrades to plain text and disables resume,
 native images, and relayed approvals while preserving read-only arguments.
 
-## Profiles and safety
+## Launchers and safety
 
-A profile selects the CLI adapter, model, system instructions, working
-directory policy, allowed context providers, permission policy, retention,
-private default, advanced arguments, and shortcut. Fixed working directories
-must exist. Active-project profiles resolve `/proc/<active-pid>/cwd` without a
-shell and fall back visibly to home when unavailable.
+A launcher (stored as a profile in the configuration schema) selects the CLI
+adapter, model, system instructions, working directory policy, allowed context
+providers, permission policy, retention, private default, advanced arguments,
+and shortcut. Fixed working directories must exist. Active-project launchers
+resolve `/proc/<active-pid>/cwd` without a shell and fall back visibly to home
+when unavailable.
 
 The Model field discovers each harness's catalog through its native CLI and
 opens it in Omarchy's searchable picker. Refresh reruns discovery; Custom model

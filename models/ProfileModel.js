@@ -191,6 +191,37 @@ function update(state, patch) {
   return next
 }
 
+function create(state) {
+  var source = state.profiles.find(function(profile) {
+    return profile.id === state.selectedId
+  }) || state.profiles[0]
+  var candidate = "launcher"
+  var suffix = 2
+  while (state.profiles.some(function(profile) { return profile.id === candidate })) {
+    candidate = "launcher-" + suffix
+    suffix += 1
+  }
+  var next = copy(state)
+  next.profiles.push(Object.assign({}, copy(source), {
+    id: candidate,
+    name: "New launcher",
+    icon: "",
+    model: null,
+    thinkingEffort: null,
+    systemInstructions: "",
+    shortcut: null
+  }))
+  return next
+}
+
+function setDefault(state, profileId) {
+  if (!state.profiles.some(function(profile) { return profile.id === profileId }))
+    throw new Error("profile not found")
+  var next = copy(state)
+  next.selectedId = profileId
+  return next
+}
+
 function duplicate(state, profileId) {
   var source = state.profiles.find(function(profile) { return profile.id === profileId })
   if (!source) throw new Error("profile not found")
@@ -242,6 +273,8 @@ if (typeof module !== "undefined") {
     setUiShortcuts: setUiShortcuts,
     resetUiShortcuts: resetUiShortcuts,
     update: update,
+    create: create,
+    setDefault: setDefault,
     duplicate: duplicate,
     remove: remove,
     serialize: serialize

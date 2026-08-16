@@ -57,6 +57,9 @@ assert re.search(r"\bproperty\s+var\s+service\b", menu), (
     "menu must expose the paired service for shortcut diagnostics"
 )
 assert "Color.menu.scrim" not in menu, "Quick Chat must not paint a backdrop scrim"
+assert "chat.focusActivePage()" in menu and "chat.focusComposer()" in menu, (
+    "the late toplevel-activation focus must not yank the user off another page"
+)
 assert not re.search(
     r"anchors\s*\{[^}]*\btop:\s*true[^}]*\bbottom:\s*true",
     menu,
@@ -342,6 +345,7 @@ themed_consumers = [
     root / "ui/HistoryDrawer.qml",
     root / "ui/InlineError.qml",
     root / "ui/MessageList.qml",
+    root / "ui/CollapsibleSection.qml",
     root / "ui/ProfileSettings.qml",
     root / "ui/ShortcutCapture.qml",
     root / "ui/ShortcutEditor.qml",
@@ -380,8 +384,8 @@ assert "SearchableDropdown" in profile_settings, (
 assert "modelDiscoveryRequested" in profile_settings, (
     "profile settings must expose model discovery and refresh"
 )
-assert "if (!visible || !activeProfile) return" in profile_settings, (
-    "model discovery must not delay chat while profile settings are hidden"
+assert "if (!visible || !editingProfile) return" in profile_settings, (
+    "model discovery must not delay chat while the launcher editor is hidden"
 )
 assert "thinkingEffort: effortPicker.value" in profile_settings, (
     "profile settings must serialize the selected thinking effort"
@@ -399,6 +403,48 @@ assert "while (next && !root.containsSettingsItem(next)" in profile_settings
 assert "forward ? nameField : saveButton" in profile_settings
 assert "Keys.priority: Keys.BeforeItem" in profile_settings
 assert "Qt.Key_Backtab" in profile_settings and "Qt.ShiftModifier" in profile_settings
+
+# Launcher list with progressive disclosure: essentials up front, the rest
+# behind collapsed sections, one launcher marked as the default.
+assert 'title: "Launchers"' in profile_settings, (
+    "settings must open on the launcher list, not a wall of fields"
+)
+assert "function openEditor(profileId)" in profile_settings
+assert "function closeEditor()" in profile_settings
+assert "signal createRequested()" in profile_settings
+assert "signal defaultChanged(string profileId)" in profile_settings
+assert '"DEFAULT"' in profile_settings, (
+    "the default launcher must be visibly marked in the list"
+)
+assert profile_settings.count("CollapsibleSection {") >= 3, (
+    "advanced and applet-wide settings must sit behind collapsed sections"
+)
+assert 'advancedSection.expanded = adapterPicker.value === "custom"' in profile_settings, (
+    "custom-command launchers must reveal their advanced fields automatically"
+)
+for name in ("ui/ChatSurface.qml", "ui/ProfileSettings.qml"):
+    source = (root / name).read_text()
+    dialog_count = source.count("ConfirmDialog {")
+    assert dialog_count == source.count(
+        "if (handleKey(event)) event.accepted = true"
+    ), f"{name} dialogs must accept keyboard confirmation"
+    assert dialog_count == source.count(
+        "onOpenedChanged: if (opened) forceActiveFocus()"
+    ), f"{name} dialogs must take focus while open"
+
+assert "ProfileModel.create(root.profileState)" in chat_surface, (
+    "the launcher list must be able to create new launchers"
+)
+assert "ProfileModel.setDefault(root.profileState, profileId)" in chat_surface, (
+    "picking a default launcher must persist through the profile model"
+)
+collapsible = (root / "ui/CollapsibleSection.qml").read_text()
+assert "property bool expanded: false" in collapsible, (
+    "collapsible sections must default to collapsed"
+)
+assert "activeFocusOnTab: true" in collapsible, (
+    "collapsible section headers must be keyboard reachable"
+)
 
 window_shortcuts = (root / "ui/WindowShortcuts.qml").read_text()
 assert window_shortcuts.count("Shortcut {") == 7, (
