@@ -38,6 +38,9 @@ Rectangle {
     customStdin.checked = Boolean(activeProfile.customStdin)
     customReadOnly.text = (activeProfile.customReadOnlyArgs || []).join("\n")
     customOutput.currentIndex = activeProfile.customOutput === "jsonl" ? 1 : 0
+    transportPicker.currentIndex = Math.max(
+      0, transportPicker.model.indexOf(activeProfile.transport || "process")
+    )
   }
 
   function values() {
@@ -70,7 +73,8 @@ Rectangle {
       customReadOnlyArgs: customReadOnly.text.split("\n").map(function(value) {
         return value.trim()
       }).filter(Boolean),
-      customOutput: customOutput.currentText
+      customOutput: customOutput.currentText,
+      transport: transportPicker.currentText
     }
   }
 
@@ -101,6 +105,11 @@ Rectangle {
         id: adapterPicker
         Layout.fillWidth: true
         model: ["codex", "claude", "opencode", "grok", "cursor", "pi", "custom"]
+      }
+      ComboBox {
+        id: transportPicker
+        Layout.fillWidth: true
+        model: ["process", "auto", "acp"]
       }
       TextField { id: modelField; Layout.fillWidth: true; placeholderText: "Model" }
       TextArea {

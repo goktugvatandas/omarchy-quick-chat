@@ -11,6 +11,9 @@ class GrokAdapter(JsonProcessAdapter):
     executable = "grok"
     _capabilities = Capabilities(True, True, True, False, True, False)
 
+    def acp_argv(self) -> tuple[str, ...]:
+        return ("grok", "agent", "stdio")
+
     def start(self, context: AdapterContext) -> Invocation:
         prompt = context.prompt
         if context.system_instructions:

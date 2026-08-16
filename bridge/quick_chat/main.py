@@ -362,6 +362,7 @@ def run(input_stream: TextIO, output_stream: TextIO) -> None:
             engine.cancel(request_id)
         worker.join(timeout=4)
     context_manager.cleanup_all()
+    registry.close()
 
 
 def main(

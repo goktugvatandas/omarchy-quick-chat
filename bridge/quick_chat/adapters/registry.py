@@ -16,6 +16,8 @@ class AdapterRegistry:
             adapter_id: None for adapter_id in ADAPTER_IDS
         }
         self._probe_cache: dict[str, dict[str, object]] = {}
+        self._acp_transports = {}
+        self._acp_failed: set[tuple[str, str | None]] = set()
         if adapters is None:
             from .claude import ClaudeAdapter
             from .codex import CodexAdapter
@@ -63,3 +65,30 @@ class AdapterRegistry:
 
     def invalidate(self, adapter_id: str) -> None:
         self._probe_cache.pop(adapter_id, None)
+
+    def acp_transport(
+        self,
+        adapter_id: str,
+        model: str | None,
+        argv: tuple[str, ...],
+    ):
+        from ..transports.acp import AcpTransport
+
+        key = (adapter_id, model)
+        if key in self._acp_failed:
+            return None
+        if key not in self._acp_transports:
+            self._acp_transports[key] = AcpTransport(argv)
+        return self._acp_transports[key]
+
+    def mark_acp_failed(self, adapter_id: str, model: str | None) -> None:
+        key = (adapter_id, model)
+        transport = self._acp_transports.pop(key, None)
+        if transport is not None:
+            transport.close()
+        self._acp_failed.add(key)
+
+    def close(self) -> None:
+        for transport in self._acp_transports.values():
+            transport.close()
+        self._acp_transports.clear()

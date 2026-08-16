@@ -77,6 +77,7 @@ class Profile:
     custom_stdin: bool = False
     custom_read_only_args: tuple[str, ...] = ()
     custom_output: Literal["plain", "jsonl"] = "plain"
+    transport: Literal["process", "auto", "acp"] = "process"
 
     def __post_init__(self) -> None:
         if not isinstance(self.id, str) or not PROFILE_ID_PATTERN.fullmatch(self.id):
@@ -109,6 +110,8 @@ class Profile:
         _string_tuple("custom read-only arguments", self.custom_read_only_args)
         if self.custom_output not in {"plain", "jsonl"}:
             raise ValueError("customOutput must be plain or jsonl")
+        if self.transport not in {"process", "auto", "acp"}:
+            raise ValueError("transport must be process, auto, or acp")
         if self.adapter_id == "custom" and not self.custom_executable:
             raise ValueError("custom profiles require an executable")
 
@@ -133,6 +136,7 @@ class Profile:
             "customStdin": self.custom_stdin,
             "customReadOnlyArgs": list(self.custom_read_only_args),
             "customOutput": self.custom_output,
+            "transport": self.transport,
         }
 
     @classmethod
@@ -163,6 +167,7 @@ class Profile:
                 "custom read-only arguments", value.get("customReadOnlyArgs", [])
             ),
             custom_output=value.get("customOutput", "plain"),
+            transport=value.get("transport", "process"),
         )
 
 

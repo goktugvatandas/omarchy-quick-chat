@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import threading
 import queue
+import threading
+import uuid
 from pathlib import Path
 from typing import Callable, Iterator
 
@@ -11,7 +12,7 @@ from .adapters.base import AdapterContext, AdapterEvent
 from .adapters.registry import AdapterRegistry
 from .models import Config
 from .protocol import Event, Request
-from .transports.base import Transport
+from .transports.base import RunResult, Transport
 
 
 class BusyError(RuntimeError):
@@ -36,6 +37,7 @@ class Engine:
         self.approval_timeout_seconds = approval_timeout_seconds
         self._lock = threading.Lock()
         self._active_request_id: str | None = None
+        self._active_cancel: Callable[[], bool] | None = None
         self._pending_approvals: dict[
             tuple[str, str], tuple[threading.Event, list[bool]]
         ] = {}
@@ -50,11 +52,15 @@ class Engine:
         with self._lock:
             if self._active_request_id == request_id:
                 self._active_request_id = None
+                self._active_cancel = None
 
     def cancel(self, request_id: str) -> bool:
         with self._lock:
             if self._active_request_id != request_id:
                 return False
+            cancel = self._active_cancel
+        if cancel is not None:
+            return cancel()
         return self.transport.cancel(request_id)
 
     def resolve_approval(
@@ -151,16 +157,86 @@ class Engine:
             transport_errors: list[Exception] = []
             transport_done = threading.Event()
 
+            acp_transport = None
+            acp_command = getattr(adapter, "acp_argv", None)
+            if profile.transport in {"auto", "acp"} and callable(acp_command):
+                acp_transport = self.registry.acp_transport(
+                    profile.adapter_id,
+                    profile.model,
+                    acp_command(),
+                )
+                if acp_transport is None and profile.transport == "acp":
+                    yield Event("error", request.request_id, {
+                        "code": "acp_failed",
+                        "message": "ACP is unavailable for this profile.",
+                        "degradedTo": "process",
+                        "replayed": False,
+                    })
+                    return
+
             def emit(raw_event: AdapterEvent) -> None:
-                for adapter_event in adapter.parse_event(raw_event):
-                    normalized.put(adapter_event)
+                if acp_transport is not None:
+                    normalized.put(raw_event)
+                else:
+                    for adapter_event in adapter.parse_event(raw_event):
+                        normalized.put(adapter_event)
+
+            def acp_permission_handler(data: dict[str, object]) -> bool:
+                approval_id = str(data.get("approvalId") or uuid.uuid4())
+                approval_event = threading.Event()
+                approval_result: list[bool] = []
+                key = (request.request_id, approval_id)
+                with self._lock:
+                    self._pending_approvals[key] = (approval_event, approval_result)
+                normalized.put(AdapterEvent("tool_request", {
+                    "approvalId": approval_id,
+                    "title": data.get("title", "Agent operation"),
+                    "operation": data.get("operation", "unknown"),
+                    "details": data.get("details", ""),
+                    "_acpManaged": True,
+                }))
+                resolved = approval_event.wait(self.approval_timeout_seconds)
+                with self._lock:
+                    self._pending_approvals.pop(key, None)
+                return resolved and bool(approval_result and approval_result[0])
 
             def run_transport() -> None:
                 try:
-                    result_holder.append(
-                        self.transport.run(request.request_id, invocation, emit)
-                    )
+                    if acp_transport is not None:
+                        from .transports.acp import image_block, text_block
+
+                        acp_transport.permission_handler = acp_permission_handler
+                        session = acp_transport.open_session(cwd, context.session_id)
+                        normalized.put(AdapterEvent("session", {"sessionId": session.id}))
+                        with self._lock:
+                            self._active_cancel = lambda: acp_transport.cancel(session.id)
+                        prompt_text = context.prompt
+                        if context.system_instructions:
+                            prompt_text = (
+                                context.system_instructions
+                                + "\n\nUser question:\n"
+                                + context.prompt
+                            )
+                        content = [text_block(prompt_text)]
+                        content.extend(
+                            image_block(Path(attachment.path), attachment.mime_type)
+                            for attachment in context.attachments
+                            if attachment.kind == "image" and attachment.path
+                        )
+                        prompt_result = acp_transport.prompt(session.id, content, emit)
+                        normalized.put(AdapterEvent("complete", {
+                            "stopReason": prompt_result.stop_reason,
+                        }))
+                        result_holder.append(RunResult(0, "", False, False))
+                    else:
+                        with self._lock:
+                            self._active_cancel = lambda: self.transport.cancel(request.request_id)
+                        result_holder.append(
+                            self.transport.run(request.request_id, invocation, emit)
+                        )
                 except Exception as error:
+                    if acp_transport is not None:
+                        self.registry.mark_acp_failed(profile.adapter_id, profile.model)
                     transport_errors.append(error)
                 finally:
                     transport_done.set()
@@ -180,6 +256,11 @@ class Engine:
                     adapter_error = adapter_error or adapter_event.type == "error"
                     continue
                 if adapter_event.type == "tool_request":
+                    if adapter_event.data.get("_acpManaged"):
+                        visible_data = dict(adapter_event.data)
+                        visible_data.pop("_acpManaged", None)
+                        yield Event("tool_request", request.request_id, visible_data)
+                        continue
                     approval_id = adapter_event.data.get("approvalId")
                     if not isinstance(approval_id, str) or not approval_id:
                         approval_error = {
@@ -233,11 +314,13 @@ class Engine:
                 code = (
                     "not_installed"
                     if isinstance(transport_errors[0], FileNotFoundError)
-                    else "transport_failed"
+                    else "acp_failed" if acp_transport is not None else "transport_failed"
                 )
                 yield Event("error", request.request_id, {
                     "code": code,
                     "message": str(transport_errors[0]),
+                    **({"degradedTo": "process", "replayed": False}
+                       if acp_transport is not None else {}),
                 })
                 return
             result = result_holder[0]
