@@ -1,3 +1,4 @@
+import importlib.util
 import os
 import sys
 import tempfile
@@ -19,6 +20,19 @@ from bridge.quick_chat.protocol import Attachment
 
 
 FIXTURES = Path(__file__).parent / "fixtures"
+LIVE_SMOKE_PATH = Path(__file__).parents[1] / "test" / "live-harness-smoke.py"
+
+
+def load_live_smoke_module():
+    spec = importlib.util.spec_from_file_location(
+        "quick_chat_live_harness_smoke",
+        LIVE_SMOKE_PATH,
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError("could not load the live harness smoke runner")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def context(
@@ -437,6 +451,59 @@ class RemainingAdapterTests(unittest.TestCase):
                     [event.type for event in events],
                     ["session", "text_delta", "complete"],
                 )
+
+
+class LiveHarnessSmokeTests(unittest.TestCase):
+    def test_live_smoke_uses_exact_bounded_prompt(self):
+        smoke = load_live_smoke_module()
+        self.assertEqual(
+            smoke.PROMPT,
+            "Reply with exactly QUICK_CHAT_OK and nothing else.",
+        )
+
+    def test_live_smoke_auth_probes_are_noninteractive(self):
+        smoke = load_live_smoke_module()
+        self.assertEqual(smoke.auth_probe("codex", "gpt-5"), (
+            "codex",
+            "login",
+            "status",
+        ))
+        self.assertEqual(smoke.auth_probe("claude", "sonnet"), (
+            "claude",
+            "auth",
+            "status",
+        ))
+        self.assertEqual(smoke.auth_probe("cursor", "auto"), (
+            "cursor-agent",
+            "status",
+        ))
+        self.assertEqual(smoke.auth_probe("pi", "openai/gpt-5"), (
+            "pi",
+            "auth",
+            "check",
+            "--model",
+            "openai/gpt-5",
+            "--json",
+            "--no-refresh",
+        ))
+        self.assertIsNone(smoke.auth_probe("grok", "grok-4"))
+        self.assertIsNone(smoke.auth_probe("opencode", "openai/gpt-5"))
+
+    def test_live_smoke_auth_probes_never_print_credentials(self):
+        smoke = load_live_smoke_module()
+        forbidden = {
+            "--api-key",
+            "--credentials",
+            "--print-api-key",
+            "--print-credentials",
+            "--print-token",
+            "--show-token",
+            "--token",
+        }
+        for adapter_id in smoke.ADAPTER_IDS:
+            with self.subTest(adapter=adapter_id):
+                probe = smoke.auth_probe(adapter_id, "provider/model") or ()
+                self.assertTrue(forbidden.isdisjoint(probe), probe)
 
 
 class CustomAdapterTests(unittest.TestCase):

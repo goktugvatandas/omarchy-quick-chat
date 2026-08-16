@@ -122,6 +122,21 @@ Run the local non-graphical suite:
 ./test/all
 ```
 
+The real-provider matrix is deliberately opt-in. It checks installation,
+non-interactive authentication, live model discovery, production read-only
+arguments, normalized output, and terminal completion for all six built-in
+harnesses:
+
+```bash
+QUICK_CHAT_LIVE_HARNESSES=1 ./test/all
+```
+
+That command makes six real provider requests and may consume account quota.
+It prints one credential-safe JSON result per harness and exits nonzero if any
+harness is missing, unauthenticated, cannot discover a model, does not return
+`QUICK_CHAT_OK`, writes inside the test working directory, or fails to emit a
+normalized completion event.
+
 Bridge diagnostics are emitted on stderr and never rendered as assistant text.
 Inspect Omarchy shell logs and the quarantined path shown by a recovery notice.
 Use Refresh probe after updating a CLI. Native login commands are only copied;
