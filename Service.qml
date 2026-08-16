@@ -1,4 +1,5 @@
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Io
 import QtQuick
 
@@ -10,6 +11,7 @@ Item {
   property var manifest: null
   property var pluginRegistry: null
   property string lastError: ""
+  property bool shortcutSyncPending: false
   property var profiles: [
     { id: "codex", name: "Codex", shortcut: "SUPER ALT, C" },
     { id: "claude", name: "Claude Code", shortcut: null },
@@ -33,7 +35,12 @@ Item {
   }
 
   function syncShortcuts() {
-    if (!bridgePath || shortcutSync.running) return
+    if (!bridgePath) return
+    if (shortcutSync.running) {
+      shortcutSyncPending = true
+      return
+    }
+    shortcutSyncPending = false
     shortcutSync.command = [bridgePath, "shortcuts", "sync"]
     shortcutSync.running = true
   }
@@ -76,6 +83,21 @@ Item {
     }
   }
 
+  Connections {
+    target: Hyprland
+    function onRawEvent(event) {
+      if (event && String(event.name || "") === "configreloaded")
+        shortcutReloadDelay.restart()
+    }
+  }
+
+  Timer {
+    id: shortcutReloadDelay
+    interval: 180
+    repeat: false
+    onTriggered: root.syncShortcuts()
+  }
+
   FileView {
     id: configFile
     path: root.configPath
@@ -90,6 +112,10 @@ Item {
 
   Process {
     id: shortcutSync
+    onRunningChanged: {
+      if (!running && root.shortcutSyncPending)
+        Qt.callLater(root.syncShortcuts)
+    }
     stdout: SplitParser {
       onRead: function(line) {
         try {

@@ -414,6 +414,14 @@ assert "onBridgePathChanged:" in service, (
 assert 'shortcutSync.command = [bridgePath, "shortcuts", "sync"]' in service, (
     "shortcut sync must assign argv before starting its process"
 )
+assert "import Quickshell.Hyprland" in service
+assert "function onRawEvent(event)" in service
+assert 'String(event.name || "") === "configreloaded"' in service
+assert "shortcutReloadDelay.restart()" in service
+assert "onTriggered: root.syncShortcuts()" in service
+assert "property bool shortcutSyncPending" in service
+assert "if (shortcutSync.running)" in service
+assert "if (!running && root.shortcutSyncPending)" in service
 assert 'menuInstall.command = [bridgePath, "menu", "install"]' in service, (
     "service must install the Omarchy menu entry after manifest injection"
 )
