@@ -37,7 +37,13 @@ settings. Each named profile can have its own Hyprland shortcut.
 Quick Chat also adds a searchable **Quick Chat** action to the root Omarchy
 menu. The entry is merged idempotently into the user menu extension without
 replacing existing entries or comments, and is hidden while the plugin is
-disabled.
+disabled. Current Omarchy releases render all stock root rows before extension
+rows, so Quick Chat is the first custom row. The planned relative-order hook
+will default it immediately after Apps and let users choose another position.
+
+The popup itself has no full-screen backdrop or click-blocking overlay. Its
+surface, controls, state fills, borders, corners, spacing, type scale, and font
+family bind to Omarchy's live theme tokens and update with the active theme.
 
 The header switches profiles and toggles private mode. History keeps the 20
 most recently updated conversations by default. Set any positive finite limit

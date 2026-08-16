@@ -37,6 +37,9 @@ The plugin uses the CLIs' existing authentication and never stores credentials o
 
 - Distribution: standalone third-party git repository.
 - Surface: compact centered popup by default, expandable into a larger panel-style layout.
+- Popup chrome: card-sized layer surface with outside-click dismissal and no full-screen scrim or input overlay.
+- Theme: consume Omarchy's live colors, fonts, type scale, spacing, borders, control states, and corner radius throughout.
+- Main menu: expose a root action; request placement immediately after Apps, with first-custom-row fallback until Omarchy supports relative extension ordering.
 - Default CLI presets: Codex, Claude Code, OpenCode, Grok, Cursor, and Pi.
 - Extensibility: custom-command adapter in version 1.
 - Profiles: named profiles with a CLI, model, system instructions, working directory, permissions, context providers, history behavior, and optional global shortcut.
@@ -64,6 +67,12 @@ The surface owns presentation and interaction only:
 - Inline errors and status
 
 The plugin remains loaded while an answer is running so hiding the popup does not cancel work. Expanding changes the layout within the same plugin surface and preserves the active conversation.
+
+The layer-shell window is only as large as the compact or expanded card. It
+does not paint or reserve a monitor-sized scrim, and outside-click dismissal is
+handled through focus-grab lifecycle rather than a transparent full-screen
+mouse target. All visual roles bind to `Color`, `Style`, and `Border` so theme
+and font changes propagate without plugin-specific palette files.
 
 ### Local bridge
 

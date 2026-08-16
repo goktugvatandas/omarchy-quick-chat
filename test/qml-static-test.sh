@@ -20,6 +20,18 @@ assert 'import "ui"' in menu, "menu must import its local UI component directory
 assert re.search(r"\bproperty\s+var\s+service\b", menu), (
     "menu must expose the paired service for shortcut diagnostics"
 )
+assert "Color.menu.scrim" not in menu, "Quick Chat must not paint a backdrop scrim"
+assert not re.search(
+    r"anchors\s*\{[^}]*\btop:\s*true[^}]*\bbottom:\s*true",
+    menu,
+    flags=re.DOTALL,
+), "Quick Chat must not create a full-height click-blocking layer"
+assert "implicitWidth:" in menu and "implicitHeight:" in menu, (
+    "Quick Chat must use a card-sized popup surface"
+)
+assert "HyprlandFocusGrab" in menu, (
+    "outside-click dismissal must not require a full-screen MouseArea"
+)
 
 bridge = (root / "BridgeClient.qml").read_text()
 assert "stdinEnabled: true" in bridge, "bridge process must accept JSONL stdin"
@@ -44,6 +56,35 @@ attachment_preview = (root / "ui/AttachmentPreview.qml").read_text()
 assert "implicitHeight: childrenRect.height" not in attachment_preview, (
     "Flow implicitHeight is read-only in the supported Qt runtime"
 )
+
+themed_consumers = [
+    root / "ui/ApprovalCard.qml",
+    root / "ui/AttachmentPreview.qml",
+    root / "ui/ChatHeader.qml",
+    root / "ui/Composer.qml",
+    root / "ui/HistoryDrawer.qml",
+    root / "ui/InlineError.qml",
+    root / "ui/MessageList.qml",
+    root / "ui/ProfileSettings.qml",
+]
+for path in themed_consumers:
+    source = path.read_text()
+    assert "qs.Commons" in source, f"{path.name} must consume Omarchy theme tokens"
+    assert not re.search(r"Qt\.rgba\(\s*[0-9]", source), (
+        f"{path.name} must derive colors from the active Omarchy palette"
+    )
+
+for name in ("ChatHeader.qml", "Composer.qml", "ProfileSettings.qml"):
+    source = (root / "ui" / name).read_text()
+    assert not re.search(r"\b(?:ComboBox|CheckBox|TextArea|ScrollView)\s*\{", source), (
+        f"{name} must use Omarchy-themed controls"
+    )
+
+for component in ("ThemedTextArea.qml", "ThemedScrollView.qml"):
+    source = (root / "ui" / component).read_text()
+    assert "Color.menu" in source and "Style." in source, (
+        f"{component} must bind to the live Omarchy theme"
+    )
 
 service = (root / "Service.qml").read_text()
 shortcut = (root / "ShortcutDelegate.qml").read_text()

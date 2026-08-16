@@ -1,7 +1,7 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import qs.Commons
+import qs.Ui
 
 Flow {
   id: root
@@ -15,12 +15,13 @@ Flow {
   Repeater {
     model: root.attachments
 
-    delegate: Rectangle {
+    delegate: BorderSurface {
       required property var modelData
       width: Math.min(root.width, Style.space(230))
       height: Style.space(92)
       radius: Style.cornerRadius
-      color: Qt.rgba(1, 1, 1, 0.05)
+      color: Style.normalFillFor(Color.menu.text, Color.accent)
+      borderSpec: Border.controlSpec("normal", Color.menu.text, Color.accent)
 
       RowLayout {
         anchors.fill: parent
@@ -44,6 +45,8 @@ Flow {
             Layout.fillWidth: true
             text: modelData.appName || (modelData.kind === "image" ? "Screenshot" : "Context")
             color: Color.menu.text
+            font.family: Style.font.menuFamily
+            font.pixelSize: Style.font.body
             font.bold: true
             elide: Text.ElideRight
           }
@@ -52,8 +55,9 @@ Flow {
             Layout.fillWidth: true
             Layout.fillHeight: true
             text: modelData.windowTitle || modelData.text || ""
-            color: Color.menu.text
-            opacity: 0.7
+            color: Util.alpha(Color.menu.text, 0.7)
+            font.family: Style.font.menuFamily
+            font.pixelSize: Style.font.bodySmall
             textFormat: Text.PlainText
             wrapMode: Text.Wrap
             elide: Text.ElideRight
@@ -62,8 +66,8 @@ Flow {
 
           Text {
             text: String(modelData.size || 0) + " bytes"
-            color: Color.menu.text
-            opacity: 0.5
+            color: Util.alpha(Color.menu.text, 0.5)
+            font.family: Style.font.menuFamily
             font.pixelSize: Style.font.caption
           }
         }
@@ -72,10 +76,14 @@ Flow {
           Button {
             visible: modelData.kind === "image"
             text: "OCR"
+            foreground: Color.menu.text
+            fontFamily: Style.font.menuFamily
             onClicked: root.ocrRequested(modelData.id)
           }
           Button {
             text: "Remove"
+            foreground: Color.menu.text
+            fontFamily: Style.font.menuFamily
             onClicked: root.removeRequested(modelData.id)
           }
         }

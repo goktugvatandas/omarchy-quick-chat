@@ -1,9 +1,9 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import qs.Commons
+import qs.Ui
 
-Rectangle {
+BorderSurface {
   id: root
 
   property var conversations: []
@@ -19,7 +19,8 @@ Rectangle {
     return "Deleted profile"
   }
 
-  color: Qt.rgba(1, 1, 1, 0.025)
+  color: Style.normalFillFor(Color.menu.text, Color.accent)
+  borderSpec: Border.controlSpec("normal", Color.menu.text, Color.accent)
   radius: Style.cornerRadius
 
   ColumnLayout {
@@ -33,10 +34,16 @@ Rectangle {
         Layout.fillWidth: true
         text: "History"
         color: Color.menu.text
+        font.family: Style.font.menuFamily
         font.bold: true
         font.pixelSize: Style.font.title
       }
-      Button { text: "New"; onClicked: root.newChatRequested() }
+      Button {
+        text: "New"
+        foreground: Color.menu.text
+        fontFamily: Style.font.menuFamily
+        onClicked: root.newChatRequested()
+      }
     }
 
     ListView {
@@ -51,6 +58,9 @@ Rectangle {
         width: ListView.view.width
         text: (modelData.title || "Untitled") + "\n"
           + root.profileName(modelData.profileId) + " · " + (modelData.updatedAt || "")
+        foreground: Color.menu.text
+        fontFamily: Style.font.menuFamily
+        leftAlign: true
         onClicked: root.conversationSelected(modelData.id)
       }
     }
@@ -59,6 +69,9 @@ Rectangle {
       Layout.fillWidth: true
       text: "Clear history"
       enabled: root.conversations.length > 0
+      foreground: Color.urgent
+      fontFamily: Style.font.menuFamily
+      bordered: true
       onClicked: root.clearRequested()
     }
   }

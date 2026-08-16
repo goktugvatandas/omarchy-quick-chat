@@ -1,7 +1,7 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import qs.Commons
+import qs.Ui
 
 ColumnLayout {
   id: root
@@ -19,7 +19,7 @@ ColumnLayout {
 
   spacing: Style.spacing.controlGap
 
-  TextArea {
+  ThemedTextArea {
     id: prompt
     Layout.fillWidth: true
     Layout.preferredHeight: Style.space(92)
@@ -41,17 +41,37 @@ ColumnLayout {
     Layout.fillWidth: true
     spacing: Style.space(4)
 
-    Button { text: "Window"; onClicked: root.contextRequested("window") }
-    Button { text: "Screen"; onClicked: root.contextRequested("screen") }
-    Button { text: "App"; onClicked: root.contextRequested("app") }
-    Button { text: "Selected text"; onClicked: root.contextRequested("selection") }
+    Button {
+      text: "Window"
+      foreground: Color.menu.text
+      fontFamily: Style.font.menuFamily
+      onClicked: root.contextRequested("window")
+    }
+    Button {
+      text: "Screen"
+      foreground: Color.menu.text
+      fontFamily: Style.font.menuFamily
+      onClicked: root.contextRequested("screen")
+    }
+    Button {
+      text: "App"
+      foreground: Color.menu.text
+      fontFamily: Style.font.menuFamily
+      onClicked: root.contextRequested("app")
+    }
+    Button {
+      text: "Selected text"
+      foreground: Color.menu.text
+      fontFamily: Style.font.menuFamily
+      onClicked: root.contextRequested("selection")
+    }
 
     Text {
       Layout.fillWidth: true
       horizontalAlignment: Text.AlignRight
       text: root.attachmentCount ? root.attachmentCount + " attached" : "Context is opt-in"
-      color: Color.menu.text
-      opacity: 0.6
+      color: Util.alpha(Color.menu.text, 0.6)
+      font.family: Style.font.menuFamily
       font.pixelSize: Style.font.caption
     }
   }
@@ -62,8 +82,7 @@ ColumnLayout {
     Text {
       Layout.fillWidth: true
       text: "Ctrl+Enter sends · Enter adds a line"
-      color: Color.menu.text
-      opacity: 0.6
+      color: Util.alpha(Color.menu.text, 0.6)
       font.family: Style.font.menuFamily
       font.pixelSize: Style.font.caption
     }
@@ -71,6 +90,9 @@ ColumnLayout {
     Button {
       visible: root.running
       text: "Stop"
+      foreground: Color.urgent
+      fontFamily: Style.font.menuFamily
+      bordered: true
       onClicked: root.stopRequested()
     }
 
@@ -78,6 +100,9 @@ ColumnLayout {
       visible: !root.running
       enabled: prompt.text.trim().length > 0
       text: "Send"
+      foreground: Color.menu.text
+      fontFamily: Style.font.menuFamily
+      bordered: true
       onClicked: root.sendRequested(prompt.text)
     }
   }

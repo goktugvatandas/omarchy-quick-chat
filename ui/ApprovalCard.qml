@@ -1,9 +1,9 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import qs.Commons
+import qs.Ui
 
-Rectangle {
+BorderSurface {
   id: root
 
   property var request: null
@@ -19,7 +19,11 @@ Rectangle {
   visible: request !== null
   implicitHeight: visible ? content.implicitHeight + Style.space(18) : 0
   radius: Style.cornerRadius
-  color: Qt.rgba(1, 0.65, 0, 0.12)
+  color: Util.alpha(Color.accent, Style.selectedFillAlpha)
+  borderSpec: Border.flat(
+    Util.alpha(Color.accent, Style.normalBorderAlpha),
+    Style.normalBorderWidth
+  )
   focus: visible
 
   Keys.onEscapePressed: function(event) {
@@ -37,12 +41,16 @@ Rectangle {
       Layout.fillWidth: true
       text: root.adapterName + " requests approval"
       color: Color.menu.text
+      font.family: Style.font.menuFamily
+      font.pixelSize: Style.font.subtitle
       font.bold: true
     }
     Text {
       Layout.fillWidth: true
       text: root.request ? (root.request.title || root.request.operation || "Operation") : ""
       color: Color.menu.text
+      font.family: Style.font.menuFamily
+      font.pixelSize: Style.font.body
       textFormat: Text.PlainText
       wrapMode: Text.Wrap
     }
@@ -51,6 +59,8 @@ Rectangle {
       visible: root.detailsExpanded
       text: root.request ? String(root.request.details || "") : ""
       color: Color.menu.text
+      font.family: Style.font.menuFamily
+      font.pixelSize: Style.font.bodySmall
       textFormat: Text.PlainText
       wrapMode: Text.Wrap
     }
@@ -58,12 +68,22 @@ Rectangle {
       Layout.fillWidth: true
       Button {
         text: root.detailsExpanded ? "Hide details" : "Details"
+        foreground: Color.menu.text
+        fontFamily: Style.font.menuFamily
         onClicked: root.detailsExpanded = !root.detailsExpanded
       }
       Item { Layout.fillWidth: true }
-      Button { text: "Deny"; onClicked: root.deny() }
+      Button {
+        text: "Deny"
+        foreground: Color.menu.text
+        fontFamily: Style.font.menuFamily
+        onClicked: root.deny()
+      }
       Button {
         text: "Approve once"
+        foreground: Color.menu.text
+        fontFamily: Style.font.menuFamily
+        bordered: true
         onClicked: {
           if (root.request && root.request.approvalId)
             root.approveRequested(root.request.approvalId)

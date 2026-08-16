@@ -1,10 +1,9 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import qs.Commons
 import qs.Ui
 
-Rectangle {
+BorderSurface {
   id: root
 
   property var profileState: null
@@ -19,15 +18,13 @@ Rectangle {
     if (!activeProfile) return
     nameField.text = activeProfile.name || ""
     iconField.text = activeProfile.icon || ""
-    adapterPicker.currentIndex = Math.max(0, adapterPicker.model.indexOf(activeProfile.adapterId))
+    adapterPicker.value = activeProfile.adapterId || "codex"
     modelField.text = activeProfile.model || ""
     instructionsField.text = activeProfile.systemInstructions || ""
-    directoryStrategy.currentIndex = Math.max(
-      0, directoryStrategy.model.indexOf(activeProfile.workingDirectoryStrategy || "home")
-    )
+    directoryStrategy.value = activeProfile.workingDirectoryStrategy || "home"
     directoryField.text = activeProfile.workingDirectory || ""
     contextField.text = (activeProfile.contextProviders || []).join(", ")
-    permissionPicker.currentIndex = activeProfile.permissionPolicy === "ask" ? 1 : 0
+    permissionPicker.value = activeProfile.permissionPolicy || "read-only"
     shortcutField.text = activeProfile.shortcut || ""
     profileUnlimited.checked = activeProfile.historyLimit === null
     profileRetention.text = activeProfile.historyLimit === null
@@ -38,10 +35,8 @@ Rectangle {
     customArguments.text = (activeProfile.customArgs || []).join("\n")
     customStdin.checked = Boolean(activeProfile.customStdin)
     customReadOnly.text = (activeProfile.customReadOnlyArgs || []).join("\n")
-    customOutput.currentIndex = activeProfile.customOutput === "jsonl" ? 1 : 0
-    transportPicker.currentIndex = Math.max(
-      0, transportPicker.model.indexOf(activeProfile.transport || "process")
-    )
+    customOutput.value = activeProfile.customOutput || "plain"
+    transportPicker.value = activeProfile.transport || "process"
   }
 
   function values() {
@@ -51,15 +46,15 @@ Rectangle {
     return {
       name: nameField.text.trim(),
       icon: iconField.text.trim(),
-      adapterId: adapterPicker.currentText,
+      adapterId: adapterPicker.value,
       model: modelField.text.trim() || null,
       systemInstructions: instructionsField.text,
-      workingDirectoryStrategy: directoryStrategy.currentText,
+      workingDirectoryStrategy: directoryStrategy.value,
       workingDirectory: directoryField.text.trim() || null,
       contextProviders: contextField.text.split(",").map(function(value) {
         return value.trim()
       }).filter(Boolean),
-      permissionPolicy: permissionPicker.currentText,
+      permissionPolicy: permissionPicker.value,
       shortcut: shortcutField.text.trim() || null,
       historyLimit: historyValue,
       privateByDefault: privateDefault.checked,
@@ -74,16 +69,17 @@ Rectangle {
       customReadOnlyArgs: customReadOnly.text.split("\n").map(function(value) {
         return value.trim()
       }).filter(Boolean),
-      customOutput: customOutput.currentText,
-      transport: transportPicker.currentText
+      customOutput: customOutput.value,
+      transport: transportPicker.value
     }
   }
 
-  color: Qt.rgba(1, 1, 1, 0.025)
+  color: Style.normalFillFor(Color.menu.text, Color.accent)
+  borderSpec: Border.controlSpec("normal", Color.menu.text, Color.accent)
   radius: Style.cornerRadius
   onActiveProfileChanged: loadProfile()
 
-  ScrollView {
+  ThemedScrollView {
     anchors.fill: parent
     anchors.margins: Style.spacing.controlPaddingY
     clip: true
@@ -96,24 +92,51 @@ Rectangle {
         Layout.fillWidth: true
         text: "Profile settings"
         color: Color.menu.text
+        font.family: Style.font.menuFamily
         font.bold: true
         font.pixelSize: Style.font.title
       }
 
-      TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Name" }
-      TextField { id: iconField; Layout.fillWidth: true; placeholderText: "Icon" }
-      ComboBox {
+      TextField {
+        id: nameField
+        Layout.fillWidth: true
+        foreground: Color.menu.text
+        font.family: Style.font.menuFamily
+        placeholderText: "Name"
+      }
+      TextField {
+        id: iconField
+        Layout.fillWidth: true
+        foreground: Color.menu.text
+        font.family: Style.font.menuFamily
+        placeholderText: "Icon"
+      }
+      Dropdown {
         id: adapterPicker
         Layout.fillWidth: true
-        model: ["codex", "claude", "opencode", "grok", "cursor", "pi", "custom"]
+        showLabel: false
+        foreground: Color.menu.text
+        fontFamily: Style.font.menuFamily
+        options: ["codex", "claude", "opencode", "grok", "cursor", "pi", "custom"]
+        value: "codex"
       }
-      ComboBox {
+      Dropdown {
         id: transportPicker
         Layout.fillWidth: true
-        model: ["process", "auto", "acp"]
+        showLabel: false
+        foreground: Color.menu.text
+        fontFamily: Style.font.menuFamily
+        options: ["process", "auto", "acp"]
+        value: "process"
       }
-      TextField { id: modelField; Layout.fillWidth: true; placeholderText: "Model" }
-      TextArea {
+      TextField {
+        id: modelField
+        Layout.fillWidth: true
+        foreground: Color.menu.text
+        font.family: Style.font.menuFamily
+        placeholderText: "Model"
+      }
+      ThemedTextArea {
         id: instructionsField
         Layout.fillWidth: true
         Layout.preferredHeight: Style.space(90)
@@ -123,64 +146,90 @@ Rectangle {
 
       Text {
         Layout.fillWidth: true
-        visible: adapterPicker.currentText === "custom"
+        visible: adapterPicker.value === "custom"
         text: "Custom command"
         color: Color.menu.text
+        font.family: Style.font.menuFamily
+        font.pixelSize: Style.font.subtitle
         font.bold: true
       }
       TextField {
         id: customExecutable
         Layout.fillWidth: true
-        visible: adapterPicker.currentText === "custom"
+        visible: adapterPicker.value === "custom"
+        foreground: Color.menu.text
+        font.family: Style.font.menuFamily
         placeholderText: "Executable"
       }
-      TextArea {
+      ThemedTextArea {
         id: customArguments
         Layout.fillWidth: true
-        visible: adapterPicker.currentText === "custom"
+        visible: adapterPicker.value === "custom"
         placeholderText: "Arguments, one per line"
       }
-      CheckBox {
+      Toggle {
         id: customStdin
-        visible: adapterPicker.currentText === "custom"
-        text: "Send prompt on stdin"
+        Layout.fillWidth: true
+        visible: adapterPicker.value === "custom"
+        label: "Send prompt on stdin"
+        foreground: Color.menu.text
+        fontFamily: Style.font.menuFamily
+        onClicked: checked = !checked
       }
-      TextArea {
+      ThemedTextArea {
         id: customReadOnly
         Layout.fillWidth: true
-        visible: adapterPicker.currentText === "custom"
+        visible: adapterPicker.value === "custom"
         placeholderText: "Read-only arguments, one per line"
       }
-      ComboBox {
+      Dropdown {
         id: customOutput
         Layout.fillWidth: true
-        visible: adapterPicker.currentText === "custom"
-        model: ["plain", "jsonl"]
+        visible: adapterPicker.value === "custom"
+        showLabel: false
+        foreground: Color.menu.text
+        fontFamily: Style.font.menuFamily
+        options: ["plain", "jsonl"]
+        value: "plain"
       }
-      ComboBox {
+      Dropdown {
         id: directoryStrategy
         Layout.fillWidth: true
-        model: ["home", "fixed", "active-project"]
+        showLabel: false
+        foreground: Color.menu.text
+        fontFamily: Style.font.menuFamily
+        options: ["home", "fixed", "active-project"]
+        value: "home"
       }
       TextField {
         id: directoryField
         Layout.fillWidth: true
-        visible: directoryStrategy.currentText === "fixed"
+        visible: directoryStrategy.value === "fixed"
+        foreground: Color.menu.text
+        font.family: Style.font.menuFamily
         placeholderText: "Fixed working directory"
       }
       TextField {
         id: contextField
         Layout.fillWidth: true
+        foreground: Color.menu.text
+        font.family: Style.font.menuFamily
         placeholderText: "Allowed context (comma separated)"
       }
-      ComboBox {
+      Dropdown {
         id: permissionPicker
         Layout.fillWidth: true
-        model: ["read-only", "ask"]
+        showLabel: false
+        foreground: Color.menu.text
+        fontFamily: Style.font.menuFamily
+        options: ["read-only", "ask"]
+        value: "read-only"
       }
       TextField {
         id: shortcutField
         Layout.fillWidth: true
+        foreground: Color.menu.text
+        font.family: Style.font.menuFamily
         placeholderText: "SUPER ALT, SPACE"
       }
       Text {
@@ -188,32 +237,52 @@ Rectangle {
         visible: root.shortcutError.length > 0
         text: root.shortcutError
         color: Color.urgent
+        font.family: Style.font.menuFamily
         textFormat: Text.PlainText
         wrapMode: Text.Wrap
         font.pixelSize: Style.font.caption
       }
 
-      CheckBox { id: profileUnlimited; text: "Use global history limit" }
+      Toggle {
+        id: profileUnlimited
+        Layout.fillWidth: true
+        label: "Use global history limit"
+        foreground: Color.menu.text
+        fontFamily: Style.font.menuFamily
+        onClicked: checked = !checked
+      }
       TextField {
         id: profileRetention
         Layout.fillWidth: true
         enabled: !profileUnlimited.checked
+        foreground: Color.menu.text
+        font.family: Style.font.menuFamily
         placeholderText: "Profile history limit"
         validator: IntValidator { bottom: 1 }
       }
-      CheckBox { id: privateDefault; text: "Private by default" }
-      TextArea {
+      Toggle {
+        id: privateDefault
+        Layout.fillWidth: true
+        label: "Private by default"
+        foreground: Color.menu.text
+        fontFamily: Style.font.menuFamily
+        onClicked: checked = !checked
+      }
+      ThemedTextArea {
         id: advancedField
         Layout.fillWidth: true
         Layout.preferredHeight: Style.space(70)
         placeholderText: "Advanced arguments, one per line"
       }
 
-      CheckBox {
+      Toggle {
         id: globalUnlimited
-        text: "Unlimited global history"
+        Layout.fillWidth: true
+        label: "Unlimited global history"
+        foreground: Color.menu.text
+        fontFamily: Style.font.menuFamily
         checked: root.profileState && root.profileState.historyLimit === null
-        onToggled: root.historyLimitChanged(checked ? null : 20)
+        onClicked: root.historyLimitChanged(checked ? 20 : null)
       }
 
       RowLayout {
@@ -222,10 +291,23 @@ Rectangle {
           Layout.fillWidth: true
           text: "Save"
           enabled: Boolean(root.activeProfile) && nameField.text.trim().length > 0
+          foreground: Color.menu.text
+          fontFamily: Style.font.menuFamily
+          bordered: true
           onClicked: root.profilePatchRequested(root.values())
         }
-        Button { text: "Duplicate"; onClicked: root.duplicateRequested() }
-        Button { text: "Remove"; onClicked: removeDialog.opened = true }
+        Button {
+          text: "Duplicate"
+          foreground: Color.menu.text
+          fontFamily: Style.font.menuFamily
+          onClicked: root.duplicateRequested()
+        }
+        Button {
+          text: "Remove"
+          foreground: Color.urgent
+          fontFamily: Style.font.menuFamily
+          onClicked: removeDialog.opened = true
+        }
       }
     }
   }
@@ -235,6 +317,12 @@ Rectangle {
     anchors.fill: parent
     message: "Remove this profile? Existing history remains readable."
     confirmText: "Remove"
+    background: Color.menu.background
+    foreground: Color.menu.text
+    scrim: Util.alpha(Color.menu.background, 0.72)
+    selectedBackground: Color.menu.selectedBackground
+    selectedText: Color.menu.selectedText
+    fontFamily: Style.font.menuFamily
     onCanceled: opened = false
     onConfirmed: {
       opened = false

@@ -1,9 +1,9 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import qs.Commons
+import qs.Ui
 
-Rectangle {
+BorderSurface {
   id: root
 
   property var error: null
@@ -29,7 +29,11 @@ Rectangle {
   visible: error !== null
   implicitHeight: visible ? errorRow.implicitHeight + Style.spacing.controlPaddingY * 2 : 0
   radius: Style.cornerRadius
-  color: Qt.rgba(1, 0.2, 0.2, 0.12)
+  color: Util.alpha(Color.urgent, Style.selectedFillAlpha)
+  borderSpec: Border.flat(
+    Util.alpha(Color.urgent, Style.normalBorderAlpha),
+    Style.normalBorderWidth
+  )
 
   RowLayout {
     id: errorRow
@@ -40,6 +44,8 @@ Rectangle {
       Layout.fillWidth: true
       text: root.error ? (root.error.message || root.error.code || "Request failed") : ""
       color: Color.menu.text
+      font.family: Style.font.menuFamily
+      font.pixelSize: Style.font.body
       wrapMode: Text.Wrap
       textFormat: Text.PlainText
     }
@@ -47,11 +53,19 @@ Rectangle {
     Button {
       visible: root.error && root.actionLabel(root.error.code)
       text: root.error ? root.actionLabel(root.error.code) : ""
+      foreground: Color.menu.text
+      fontFamily: Style.font.menuFamily
+      bordered: true
       onClicked: {
         if (root.error.code === "timeout") root.retryRequested()
         else root.actionRequested(root.error.code, root.error)
       }
     }
-    Button { text: "Dismiss"; onClicked: root.dismissed() }
+    Button {
+      text: "Dismiss"
+      foreground: Color.menu.text
+      fontFamily: Style.font.menuFamily
+      onClicked: root.dismissed()
+    }
   }
 }

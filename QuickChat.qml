@@ -1,4 +1,5 @@
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Wayland
 import QtQuick
 import qs.Commons
@@ -43,32 +44,25 @@ Item {
   PanelWindow {
     id: panel
     visible: root.opened
-    anchors { top: true; right: true; bottom: true; left: true }
+    readonly property int requestedWidth: root.expanded ? Style.space(1040) : Style.space(620)
+    readonly property int requestedHeight: root.expanded ? Style.space(760) : Style.space(620)
+    implicitWidth: screen
+      ? Math.min(requestedWidth, screen.width - Style.gapsOut * 2)
+      : requestedWidth
+    implicitHeight: screen
+      ? Math.min(requestedHeight, root.expanded
+          ? screen.height - Style.gapsOut * 2
+          : Math.round(screen.height * 0.7))
+      : requestedHeight
     color: "transparent"
     WlrLayershell.namespace: "community-quick-chat"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     exclusionMode: ExclusionMode.Ignore
 
-    Rectangle {
-      anchors.fill: parent
-      color: Color.menu.scrim
-    }
-
-    MouseArea {
-      anchors.fill: parent
-      onClicked: root.dismiss()
-    }
-
     BorderSurface {
       id: card
-      width: root.expanded
-        ? Math.min(Style.space(1040), panel.width - Style.gapsOut * 2)
-        : Math.min(Style.space(620), panel.width - Style.gapsOut * 2)
-      height: root.expanded
-        ? Math.min(Style.space(760), panel.height - Style.gapsOut * 2)
-        : Math.min(Style.space(620), panel.height * 0.7)
-      anchors.centerIn: parent
+      anchors.fill: parent
       radius: Style.cornerRadius
       color: Color.menu.background
       borderSpec: Border.surfaceSpec(
@@ -78,8 +72,6 @@ Item {
         Math.max(1, Style.space(2))
       )
       padding: Style.spacing.panelPadding
-
-      MouseArea { anchors.fill: parent; onClicked: {} }
 
       ChatSurface {
         id: chat
@@ -100,5 +92,11 @@ Item {
         event.accepted = true
       }
     }
+  }
+
+  HyprlandFocusGrab {
+    active: root.opened && panel.visible
+    windows: [panel]
+    onCleared: if (root.opened) root.dismiss()
   }
 }

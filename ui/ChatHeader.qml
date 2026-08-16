@@ -1,7 +1,7 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import qs.Commons
+import qs.Ui
 
 RowLayout {
   id: root
@@ -23,53 +23,59 @@ RowLayout {
   signal expandRequested()
   signal historyRequested()
 
-  function syncSelection() {
-    for (var index = 0; index < root.profiles.length; index += 1) {
-      if (root.profiles[index].id === root.profileId) {
-        profilePicker.currentIndex = index
-        return
-      }
-    }
-  }
-
-  onProfileIdChanged: syncSelection()
-  onProfilesChanged: syncSelection()
-
   spacing: Style.spacing.controlGap
 
-  ComboBox {
+  Dropdown {
     id: profilePicker
     Layout.preferredWidth: Style.space(180)
-    textRole: "name"
-    valueRole: "id"
-    model: root.profiles
-    onActivated: root.profileSelected(currentValue)
-    Component.onCompleted: root.syncSelection()
+    showLabel: false
+    foreground: Color.menu.text
+    fontFamily: Style.font.menuFamily
+    value: root.profileId
+    options: root.profiles.map(function(profile) {
+      return { value: profile.id, label: profile.name }
+    })
+    onChanged: function(value) { root.profileSelected(value) }
   }
 
   Text {
     Layout.fillWidth: true
     text: root.cliState
-    color: Color.menu.text
-    opacity: 0.7
+    color: Util.alpha(Color.menu.text, 0.7)
     font.family: Style.font.menuFamily
     font.pixelSize: Style.font.caption
     elide: Text.ElideRight
   }
 
-  CheckBox {
-    text: "Private"
-    checked: root.privateMode
-    onToggled: root.privateChanged(checked)
+  RowLayout {
+    spacing: Style.spacing.sm
+
+    Text {
+      text: "Private"
+      color: Color.menu.text
+      font.family: Style.font.menuFamily
+      font.pixelSize: Style.font.body
+    }
+
+    ToggleSwitch {
+      checked: root.privateMode
+      foreground: Color.menu.text
+      accent: Color.accent
+      onToggled: root.privateChanged(!root.privateMode)
+    }
   }
 
   Button {
     text: "History"
+    foreground: Color.menu.text
+    fontFamily: Style.font.menuFamily
     onClicked: root.historyRequested()
   }
 
   Button {
     text: "Expand"
+    foreground: Color.menu.text
+    fontFamily: Style.font.menuFamily
     onClicked: root.expandRequested()
   }
 }

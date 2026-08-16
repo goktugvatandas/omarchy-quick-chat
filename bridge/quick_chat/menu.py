@@ -12,9 +12,25 @@ from pathlib import Path
 
 
 MENU_ENTRY_ID = "quick-chat"
+LEGACY_MENU_ENTRY = {
+    "icon": "󰚩",
+    "label": "Quick Chat",
+    "description": "Ask Codex, Claude Code, OpenCode, Grok, Cursor, or Pi",
+    "aliases": ["quick-chat", "chat", "ask"],
+    "when": (
+        "jq -e 'any(.plugins[]?; .id == \"community.quick-chat\")' "
+        '"$HOME/.config/omarchy/shell.json" >/dev/null'
+    ),
+    "action": "omarchy-shell shell summon community.quick-chat '{}'",
+}
 MENU_ENTRY = {
     "icon": "󰚩",
     "label": "Quick Chat",
+    # Current Omarchy releases ignore relative-order metadata and append all
+    # extension rows after stock rows. Keeping the requested anchor on our
+    # namespaced entry makes the intent forward-compatible with the planned
+    # core ordering hook while remaining harmless today.
+    "after": "apps",
     "description": "Ask Codex, Claude Code, OpenCode, Grok, Cursor, or Pi",
     "aliases": ["quick-chat", "chat", "ask"],
     "when": (
@@ -81,6 +97,25 @@ def _entry_exists(content: str) -> bool:
         return re.search(pattern, without_comments) is not None
 
 
+def _serialized_entry(entry: dict[str, object]) -> str:
+    key = json.dumps(MENU_ENTRY_ID, ensure_ascii=False)
+    value = json.dumps(entry, ensure_ascii=False, separators=(",", ":"))
+    return f"{key}: {value},"
+
+
+def _upgrade_generated_entry(content: str) -> str | None:
+    legacy = _serialized_entry(LEGACY_MENU_ENTRY)
+    current = _serialized_entry(MENU_ENTRY)
+    pattern = re.compile(
+        rf"(?m)^([ \t]*){re.escape(legacy)}([ \t]*)$"
+    )
+    match = pattern.search(content)
+    if match is None:
+        return None
+    replacement = f"{match.group(1)}{current}{match.group(2)}"
+    return content[: match.start()] + replacement + content[match.end() :]
+
+
 def _insertion_point(content: str) -> tuple[int, str]:
     items = re.search(r'(?m)^([ \t]*)"items"\s*:\s*\{', content)
     if items is not None:
@@ -99,13 +134,16 @@ def install_menu_entry(path: Path) -> MenuInstallResult:
     else:
         content = "{}\n"
 
+    upgraded = _upgrade_generated_entry(content)
+    if upgraded is not None:
+        _atomic_write(path, upgraded)
+        return MenuInstallResult(path=path, changed=True)
+
     if _entry_exists(content):
         return MenuInstallResult(path=path, changed=False)
 
     position, indentation = _insertion_point(content)
-    key = json.dumps(MENU_ENTRY_ID, ensure_ascii=False)
-    value = json.dumps(MENU_ENTRY, ensure_ascii=False, separators=(",", ":"))
-    insertion = f"\n{indentation}{key}: {value},"
+    insertion = f"\n{indentation}{_serialized_entry(MENU_ENTRY)}"
     updated = content[:position] + insertion + content[position:]
     _atomic_write(path, updated)
     return MenuInstallResult(path=path, changed=True)

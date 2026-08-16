@@ -410,6 +410,12 @@ Item {
     anchors.fill: parent
     message: "Clear all Quick Chat history? CLI-owned sessions are not deleted."
     confirmText: "Clear"
+    background: Color.menu.background
+    foreground: Color.menu.text
+    scrim: Util.alpha(Color.menu.background, 0.72)
+    selectedBackground: Color.menu.selectedBackground
+    selectedText: Color.menu.selectedText
+    fontFamily: Style.font.menuFamily
     onCanceled: opened = false
     onConfirmed: {
       opened = false
@@ -428,6 +434,12 @@ Item {
     message: "This profile cannot receive images in process mode. Convert them to text or switch profile."
     cancelText: "Switch profile"
     confirmText: "Convert to text"
+    background: Color.menu.background
+    foreground: Color.menu.text
+    scrim: Util.alpha(Color.menu.background, 0.72)
+    selectedBackground: Color.menu.selectedBackground
+    selectedText: Color.menu.selectedText
+    fontFamily: Style.font.menuFamily
     onCanceled: {
       opened = false
       root.pendingPrompt = ""

@@ -565,7 +565,7 @@ Export `initialState`, `beginRun`, `reduce`, `retryRun`, and `clearError` under 
 
 - [ ] **Step 5: Implement the centered popup shell**
 
-Follow Omarchy's menu pattern: a full-screen transparent `PanelWindow`, overlay layer, exclusive keyboard focus, scrim, and centered `BorderSurface` using `Color.menu.*`, `Border.surfaceSpec`, `Style.spacing.*`, and `Style.font.*`. Compact width is `min(Style.space(620), panel.width - Style.gapsOut * 2)` and height is capped at 70% of the monitor.
+Use a card-sized centered `PanelWindow` on the overlay layer with exclusive keyboard focus and `HyprlandFocusGrab` outside-click dismissal. Do not create a full-screen scrim or transparent mouse target. Render the card and every control from live `Color.*`, `Style.*`, and `Border.*` tokens. Compact width is capped at `Style.space(620)` and compact height at 70% of the monitor.
 
 - [ ] **Step 6: Implement keyboard-first compact chat controls**
 
@@ -1046,6 +1046,49 @@ Expected: PASS for ACP contracts plus every process-backed regression test. `doc
 git add bridge/quick_chat/transports bridge/quick_chat/adapters bridge/quick_chat/engine.py tests docs/acp-transport.md
 git commit -m "feat: add persistent ACP transport"
 ```
+
+### Task 14: Add configurable relative placement in the Omarchy root menu
+
+**Dependency:** Omarchy's menu extension schema must first expose stable
+relative ordering. The current merger fixes every stock item before every user
+extension item and ignores `order`, `before`, and `after` metadata; Quick Chat
+therefore remains the first custom root row without patching stock files.
+
+**Files:**
+- Upstream Omarchy: `shell/plugins/menu/MenuModel.js`
+- Upstream Omarchy: root-menu schema documentation and tests
+- Modify: `bridge/quick_chat/menu.py`
+- Modify: `bridge/quick_chat/models.py`
+- Modify: `ui/ProfileSettings.qml`
+- Modify: `tests/test_menu.py`
+
+- [ ] **Step 1: Add and upstream-test a relative-order contract**
+
+Support `after: "apps"` and `before: <id>` for user extension rows while
+preserving declaration order for rows without placement metadata. Missing or
+hidden anchors fall back deterministically without dropping the extension row.
+
+- [ ] **Step 2: Ask for placement on first run**
+
+Offer After Apps (default), Top, and Bottom. Persist the choice in Quick Chat's
+global configuration; never edit or reorder unrelated user entries.
+
+- [ ] **Step 3: Apply placement idempotently**
+
+Write only Quick Chat's namespaced root entry, update its placement metadata
+when the preference changes, preserve comments and custom fields, and hot-refresh
+`omarchy.menu`.
+
+- [ ] **Step 4: Keep a compatibility fallback**
+
+Detect shells without the relative-order contract and install Quick Chat as the
+first custom root row. Show the limitation next to the placement setting rather
+than modifying `/usr/share/omarchy`.
+
+- [ ] **Step 5: Verify all placement modes**
+
+Test After Apps, Top, Bottom, a missing anchor, disabled-plugin visibility,
+idempotent reinstall, user-customized rows, and upgrade from the current entry.
 
 ## Final Verification
 
