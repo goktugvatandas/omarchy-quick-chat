@@ -349,6 +349,11 @@ assert "id: shortcutEditor" in profile_settings
 assert "signal uiShortcutsChanged(var shortcuts)" in profile_settings
 assert "function ensureFocusedItemVisible" in profile_settings
 assert "shortcutCaptureActive: shortcutEditor.captureActive" in profile_settings
+assert "function moveTabFocus(forward)" in profile_settings
+assert "root.Window.window.activeFocusItem" in profile_settings
+assert "current.nextItemInFocusChain(forward)" in profile_settings
+assert "Keys.priority: Keys.BeforeItem" in profile_settings
+assert "Qt.Key_Backtab" in profile_settings and "Qt.ShiftModifier" in profile_settings
 
 window_shortcuts = (root / "ui/WindowShortcuts.qml").read_text()
 assert window_shortcuts.count("Shortcut {") == 7, (

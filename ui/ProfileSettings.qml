@@ -172,6 +172,18 @@ FocusScope {
     }
   }
 
+  function moveTabFocus(forward) {
+    var current = root.Window.window ? root.Window.window.activeFocusItem : null
+    if (!current || typeof current.nextItemInFocusChain !== "function") {
+      nameField.forceActiveFocus()
+      return
+    }
+    var next = current.nextItemInFocusChain(forward)
+    if (!next || next === current) return
+    next.forceActiveFocus()
+    Qt.callLater(function() { root.ensureFocusedItemVisible(next) })
+  }
+
   onActiveProfileChanged: {
     loadProfile()
     discoverCurrentModels(false)
@@ -181,6 +193,17 @@ FocusScope {
   onAdapterStatesChanged: reconcileEditingEffort()
   onModelsLoadingChanged: {
     if (!modelsLoading) reconcileEditingEffort()
+  }
+
+  Keys.priority: Keys.BeforeItem
+  Keys.onPressed: function(event) {
+    if (root.dialogOpen || root.shortcutCaptureActive) return
+    var backwards = event.key === Qt.Key_Backtab
+      || (event.key === Qt.Key_Tab && (event.modifiers & Qt.ShiftModifier))
+    var forwards = event.key === Qt.Key_Tab && event.modifiers === Qt.NoModifier
+    if (!backwards && !forwards) return
+    root.moveTabFocus(!backwards)
+    event.accepted = true
   }
 
   Connections {
