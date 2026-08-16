@@ -51,6 +51,9 @@ assert "Quickshell.execDetached([" in shortcut, "summon must use an argument arr
 assert "onBridgePathChanged:" in service, (
     "shortcut sync must start after Omarchy injects the plugin manifest"
 )
+assert 'shortcutSync.command = [bridgePath, "shortcuts", "sync"]' in service, (
+    "shortcut sync must assign argv before starting its process"
+)
 
 inline_error = (root / "ui/InlineError.qml").read_text()
 for code in (

@@ -26,7 +26,13 @@ Item {
     : ""
 
   onBridgePathChanged: {
-    if (bridgePath) shortcutSync.running = true
+    Qt.callLater(function() { root.syncShortcuts() })
+  }
+
+  function syncShortcuts() {
+    if (!bridgePath || shortcutSync.running) return
+    shortcutSync.command = [bridgePath, "shortcuts", "sync"]
+    shortcutSync.running = true
   }
 
   function loadConfig(content) {
@@ -44,7 +50,7 @@ Item {
       })
       lastError = ""
       Qt.callLater(function() {
-        if (root.bridgePath) shortcutSync.running = true
+        root.syncShortcuts()
       })
     } catch (error) {
       lastError = "Invalid Quick Chat configuration: " + error
@@ -68,13 +74,12 @@ Item {
     onLoaded: root.loadConfig(text())
     onFileChanged: reload()
     onLoadFailed: function(error) {
-      if (root.bridgePath) shortcutSync.running = true
+      Qt.callLater(function() { root.syncShortcuts() })
     }
   }
 
   Process {
     id: shortcutSync
-    command: [root.bridgePath, "shortcuts", "sync"]
     stdout: SplitParser {
       onRead: function(line) {
         try {
