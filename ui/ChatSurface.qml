@@ -13,6 +13,7 @@ Item {
 
   property var manifest: null
   property var shell: null
+  property var service: null
   property string profileId: "codex"
   property string conversationId: "conversation-" + Date.now()
   property bool privateMode: false
@@ -383,6 +384,7 @@ Item {
       visible: root.expanded
       profileState: root.profileState
       activeProfile: root.activeProfile()
+      shortcutError: root.service ? root.service.lastError : ""
       onHistoryLimitChanged: function(value) {
         root.saveProfiles(ProfileModel.setHistoryLimit(root.profileState, value))
       }

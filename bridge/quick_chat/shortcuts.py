@@ -152,7 +152,12 @@ def sync_shortcuts(
             continue
         foreign = next((binding for binding in existing if not _owned(binding, profile_id)), None)
         if foreign is not None:
-            owner = str(foreign.get("arg") or foreign.get("dispatcher") or "unknown")
+            owner = str(
+                foreign.get("description")
+                or foreign.get("arg")
+                or foreign.get("dispatcher")
+                or "unknown"
+            )
             conflicts.append(ShortcutConflict(profile_id, shortcut, owner))
             continue
         modifiers, key = shortcut.split(", ", 1)

@@ -12,6 +12,7 @@ Item {
   property var shell: null
   property var manifest: null
   property var pluginRegistry: null
+  property var service: null
   property bool opened: false
   property bool expanded: false
   property string openingPayload: "{}"
@@ -89,6 +90,7 @@ Item {
         anchors.leftMargin: card.contentLeftInset
         manifest: root.manifest
         shell: root.shell
+        service: root.service
         expanded: root.expanded
         onExpandRequested: root.expanded = !root.expanded
       }

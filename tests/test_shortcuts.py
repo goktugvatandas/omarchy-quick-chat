@@ -36,9 +36,11 @@ class ShortcutTests(unittest.TestCase):
             "key": "SPACE",
             "dispatcher": "exec",
             "arg": "something-else",
+            "description": "Apps menu",
         }])
         result = sync_shortcuts(Config.default(), runner)
         self.assertEqual(result.conflicts[0].profile_id, "codex")
+        self.assertEqual(result.conflicts[0].owner, "Apps menu")
         self.assertFalse(any("bindd" in call for command in runner.calls for call in command))
 
     def test_profile_shortcut_adds_exact_global_target(self):

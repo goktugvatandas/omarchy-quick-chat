@@ -9,6 +9,7 @@ Rectangle {
 
   property var profileState: null
   property var activeProfile: null
+  property string shortcutError: ""
   signal historyLimitChanged(var value)
   signal profilePatchRequested(var values)
   signal duplicateRequested()
@@ -181,6 +182,15 @@ Rectangle {
         id: shortcutField
         Layout.fillWidth: true
         placeholderText: "SUPER ALT, SPACE"
+      }
+      Text {
+        Layout.fillWidth: true
+        visible: root.shortcutError.length > 0
+        text: root.shortcutError
+        color: Color.urgent
+        textFormat: Text.PlainText
+        wrapMode: Text.Wrap
+        font.pixelSize: Style.font.caption
       }
 
       CheckBox { id: profileUnlimited; text: "Use global history limit" }
