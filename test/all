@@ -6,3 +6,7 @@ bash "$ROOT/test/manifest-test.sh"
 bash "$ROOT/test/qml-static-test.sh"
 node "$ROOT/test/qml-model-test.js"
 python3 -m unittest discover -s "$ROOT/tests" -p 'test_*.py'
+
+if [[ "${QUICK_CHAT_RUN_ACCEPTANCE:-}" == "1" ]]; then
+  bash "$ROOT/test/acceptance/quick-chat-test.sh"
+fi

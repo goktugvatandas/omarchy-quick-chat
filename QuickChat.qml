@@ -21,6 +21,9 @@ Item {
     openingPayload = payloadJson || "{}"
     if (payload.profileId) chat.profileId = payload.profileId
     if (payload.conversationId) chat.conversationId = payload.conversationId
+    if (payload.acceptanceFixture === "settings") root.expanded = true
+    else if (payload.acceptanceFixture) root.expanded = false
+    if (payload.acceptanceFixture) chat.showAcceptanceFixture(payload.acceptanceFixture)
     opened = true
     Qt.callLater(function() { chat.focusComposer() })
   }

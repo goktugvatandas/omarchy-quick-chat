@@ -86,6 +86,43 @@ Item {
     })
   }
 
+  function showAcceptanceFixture(name) {
+    newConversation()
+    attachments = []
+    pendingApproval = null
+    if (name === "attachment") {
+      attachments = [{
+        id: "fixture-text",
+        kind: "text",
+        path: null,
+        text: "Selected text preview",
+        mimeType: "text/plain",
+        appName: "Acceptance fixture",
+        windowTitle: "Preview before sending",
+        size: 28
+      }]
+    } else if (name === "streamed") {
+      chatState = ChatModel.loadConversation(chatState, {
+        id: conversationId,
+        profileId: profileId,
+        messages: [
+          { role: "user", content: "Explain this window" },
+          { role: "assistant", content: "This is a streamed answer fixture." }
+        ],
+        cliSessions: {}
+      })
+    } else if (name === "approval") {
+      pendingApproval = {
+        approvalId: "fixture-approval",
+        title: "Read a protected project file",
+        operation: "read_file",
+        details: "/tmp/example"
+      }
+    } else if (name === "error") {
+      chatState = ChatModel.withFailedRun("Explain this", "timeout")
+    }
+  }
+
   function sendPrompt(prompt) {
     var trimmed = prompt.trim()
     if (!trimmed || chatState.running) return
