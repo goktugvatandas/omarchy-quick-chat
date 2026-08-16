@@ -6,13 +6,13 @@ from pathlib import Path
 
 from .base import AdapterContext, AdapterEvent, Capabilities, Invocation
 from .json_process import JsonProcessAdapter
-from ..model_discovery import discover_command_models
+from ..model_discovery import discover_command_models, merge_cursor_effort
 
 
 class CursorAdapter(JsonProcessAdapter):
     id = "cursor"
     executable = "cursor-agent"
-    _capabilities = Capabilities(True, True, True, False, True, False)
+    _capabilities = Capabilities(True, True, True, False, True, False, True)
 
     def discover_models(self, cwd: Path | None = None):
         return discover_command_models(("cursor-agent", "models"), "cursor", cwd)
@@ -21,11 +21,16 @@ class CursorAdapter(JsonProcessAdapter):
         prompt = context.prompt
         if context.system_instructions:
             prompt = f"{context.system_instructions}\n\nUser question:\n{context.prompt}"
-        arguments = ["cursor-agent", "-p", prompt]
+        arguments = ["cursor-agent", "-p", prompt, "--mode", "ask"]
         if not self._degraded:
             arguments.extend(("--output-format", "stream-json"))
-        if context.model:
-            arguments.extend(("--model", context.model))
+        model = context.model
+        if context.thinking_effort:
+            if not model:
+                raise ValueError("Cursor thinking effort requires a selected model")
+            model = merge_cursor_effort(model, context.thinking_effort)
+        if model:
+            arguments.extend(("--model", model))
         if context.session_id and not self._degraded:
             arguments.append(f"--resume={context.session_id}")
         return Invocation(tuple(arguments), context.cwd, self.environment(), None)

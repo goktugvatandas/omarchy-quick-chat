@@ -12,7 +12,7 @@ from ..model_discovery import discover_command_models
 class OpenCodeAdapter(JsonProcessAdapter):
     id = "opencode"
     executable = "opencode"
-    _capabilities = Capabilities(True, True, True, True, True, False)
+    _capabilities = Capabilities(True, True, True, True, True, False, True)
 
     def discover_models(self, cwd: Path | None = None):
         return discover_command_models(("opencode", "models"), "opencode", cwd)
@@ -28,6 +28,8 @@ class OpenCodeAdapter(JsonProcessAdapter):
         ]
         if context.model:
             arguments.extend(("--model", context.model))
+        if context.thinking_effort:
+            arguments.extend(("--variant", context.thinking_effort))
         if context.session_id and not self._degraded:
             arguments.extend(("--session", context.session_id))
         for attachment in context.attachments:

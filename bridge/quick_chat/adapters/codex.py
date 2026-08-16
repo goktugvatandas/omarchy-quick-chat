@@ -21,13 +21,20 @@ class CodexAdapter(ProcessAdapterBase):
         native_images=True,
         read_only_enforced=True,
         relayable_approvals=False,
+        thinking_effort=True,
     )
 
     def discover_models(self, cwd: Path | None = None):
         return discover_codex_models(cwd)
 
     def start(self, context: AdapterContext) -> Invocation:
-        arguments = ["codex", "exec"]
+        arguments = ["codex"]
+        if context.thinking_effort:
+            arguments.extend((
+                "-c",
+                f'model_reasoning_effort="{context.thinking_effort}"',
+            ))
+        arguments.append("exec")
         if not self._degraded:
             arguments.append("--json")
         arguments.extend((

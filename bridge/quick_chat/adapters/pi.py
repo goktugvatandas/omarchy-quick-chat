@@ -8,13 +8,17 @@ from pathlib import Path
 from ..paths import PathSet
 from .base import AdapterContext, AdapterEvent, Capabilities, Invocation
 from .json_process import JsonProcessAdapter
-from ..model_discovery import discover_command_models
+from ..model_discovery import (
+    ModelDiscoveryError,
+    discover_command_models,
+    discover_help_efforts,
+)
 
 
 class PiAdapter(JsonProcessAdapter):
     id = "pi"
     executable = "pi"
-    _capabilities = Capabilities(True, True, True, True, True, False)
+    _capabilities = Capabilities(True, True, True, True, True, False, True)
 
     def __init__(self, state_dir: Path | None = None) -> None:
         super().__init__()
@@ -23,6 +27,12 @@ class PiAdapter(JsonProcessAdapter):
 
     def discover_models(self, cwd: Path | None = None):
         return discover_command_models(("pi", "--list-models"), "pi", cwd)
+
+    def effort_options(self, cwd: Path | None = None):
+        try:
+            return discover_help_efforts(("pi", "--help"), "--thinking", cwd)
+        except ModelDiscoveryError:
+            return ()
 
     def _session_path(self, session_id: str | None, private: bool = False) -> Path:
         if private:
@@ -52,6 +62,8 @@ class PiAdapter(JsonProcessAdapter):
                 arguments.extend(("--provider", provider, "--model", model))
             else:
                 arguments.extend(("--model", context.model))
+        if context.thinking_effort:
+            arguments.extend(("--thinking", context.thinking_effort))
         session_path = self._session_path(context.session_id, context.private)
         arguments.extend(("--session", str(session_path)))
         for attachment in context.attachments:

@@ -40,7 +40,7 @@ class ProcessAdapterBase:
         return ()
 
     def effort_options(self, cwd: Path | None = None) -> tuple[EffortOption, ...]:
-        return self._effort_options
+        return tuple(self._effort_options)
 
     def detect(self) -> dict[str, object]:
         try:

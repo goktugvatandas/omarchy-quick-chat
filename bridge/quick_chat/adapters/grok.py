@@ -6,18 +6,30 @@ from pathlib import Path
 
 from .base import AdapterContext, AdapterEvent, Capabilities, Invocation
 from .json_process import JsonProcessAdapter
-from ..model_discovery import discover_command_models
+from ..model_discovery import (
+    ModelDiscoveryError,
+    discover_command_models,
+    discover_help_efforts,
+)
 
 
 class GrokAdapter(JsonProcessAdapter):
     id = "grok"
     executable = "grok"
-    _capabilities = Capabilities(True, True, True, False, True, False)
+    _capabilities = Capabilities(True, True, True, False, True, False, True)
 
     def discover_models(self, cwd: Path | None = None):
         return discover_command_models(
             ("grok", "--no-auto-update", "models"), "grok", cwd
         )
+
+    def effort_options(self, cwd: Path | None = None):
+        try:
+            return discover_help_efforts(
+                ("grok", "--help"), "--reasoning-effort", cwd
+            )
+        except ModelDiscoveryError:
+            return ()
 
     def acp_argv(self) -> tuple[str, ...]:
         return ("grok", "agent", "stdio")
@@ -41,6 +53,8 @@ class GrokAdapter(JsonProcessAdapter):
         ]
         if context.model:
             arguments.extend(("--model", context.model))
+        if context.thinking_effort:
+            arguments.extend(("--reasoning-effort", context.thinking_effort))
         if context.session_id and not self._degraded:
             arguments.extend(("--session-id", context.session_id))
         return Invocation(tuple(arguments), context.cwd, self.environment(), None)

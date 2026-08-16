@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .base import AdapterContext, AdapterEvent, Capabilities, Invocation, ModelOption
 from .process_base import ProcessAdapterBase
+from ..model_discovery import ModelDiscoveryError, discover_help_efforts
 
 
 class ClaudeAdapter(ProcessAdapterBase):
@@ -20,6 +21,7 @@ class ClaudeAdapter(ProcessAdapterBase):
         native_images=False,
         read_only_enforced=True,
         relayable_approvals=False,
+        thinking_effort=True,
     )
 
     def __init__(self) -> None:
@@ -32,6 +34,12 @@ class ClaudeAdapter(ProcessAdapterBase):
             ModelOption("opus", "Opus", "Claude Code model alias"),
             ModelOption("haiku", "Haiku", "Claude Code model alias"),
         )
+
+    def effort_options(self, cwd: Path | None = None):
+        try:
+            return discover_help_efforts(("claude", "--help"), "--effort", cwd)
+        except ModelDiscoveryError:
+            return ()
 
     def start(self, context: AdapterContext) -> Invocation:
         arguments = ["claude", "-p"]
@@ -50,6 +58,8 @@ class ClaudeAdapter(ProcessAdapterBase):
         ))
         if context.model:
             arguments.extend(("--model", context.model))
+        if context.thinking_effort:
+            arguments.extend(("--effort", context.thinking_effort))
         if context.session_id and not self._degraded:
             arguments.extend(("--resume", context.session_id))
         if context.system_instructions:

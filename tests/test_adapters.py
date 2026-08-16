@@ -9,6 +9,7 @@ from bridge.quick_chat.adapters.base import AdapterContext, AdapterEvent, ModelO
 from bridge.quick_chat.adapters.claude import ClaudeAdapter
 from bridge.quick_chat.adapters.codex import CodexAdapter
 from bridge.quick_chat.adapters.custom import CustomAdapter
+from bridge.quick_chat.adapters import cursor as cursor_module
 from bridge.quick_chat.adapters.cursor import CursorAdapter
 from bridge.quick_chat.adapters.grok import GrokAdapter
 from bridge.quick_chat.adapters.opencode import OpenCodeAdapter
@@ -27,6 +28,7 @@ def context(
     attachments=(),
     system_instructions="",
     private=False,
+    thinking_effort=None,
 ):
     return AdapterContext(
         prompt=prompt,
@@ -36,6 +38,7 @@ def context(
         session_id=session_id,
         system_instructions=system_instructions,
         private=private,
+        thinking_effort=thinking_effort,
     )
 
 
@@ -190,6 +193,143 @@ class ClaudeAdapterTests(unittest.TestCase):
 
 
 class RemainingAdapterTests(unittest.TestCase):
+    def test_each_adapter_maps_native_thinking_effort(self):
+        cases = (
+            (
+                CodexAdapter(),
+                context(thinking_effort="high"),
+                ("-c", 'model_reasoning_effort="high"'),
+            ),
+            (
+                ClaudeAdapter(),
+                context(thinking_effort="high"),
+                ("--effort", "high"),
+            ),
+            (
+                OpenCodeAdapter(),
+                context(thinking_effort="high"),
+                ("--variant", "high"),
+            ),
+            (
+                GrokAdapter(),
+                context(thinking_effort="high"),
+                ("--reasoning-effort", "high"),
+            ),
+            (
+                PiAdapter(),
+                context(thinking_effort="high"),
+                ("--thinking", "high"),
+            ),
+        )
+        for adapter, adapter_context, pair in cases:
+            with self.subTest(adapter=adapter.id):
+                self.assertIn(pair, adjacent_pairs(adapter.start(adapter_context).argv))
+
+    def test_codex_config_override_precedes_exec(self):
+        argv = CodexAdapter().start(context(thinking_effort="high")).argv
+        self.assertEqual(argv[:4], (
+            "codex",
+            "-c",
+            'model_reasoning_effort="high"',
+            "exec",
+        ))
+
+    def test_cursor_is_ask_only_and_merges_model_parameters(self):
+        call = CursorAdapter().start(context(
+            model="claude-opus-4-8[context=1m,fast=false]",
+            thinking_effort="high",
+        ))
+        self.assertIn(("--mode", "ask"), adjacent_pairs(call.argv))
+        self.assertIn((
+            "--model",
+            "claude-opus-4-8[context=1m,fast=false,effort=high]",
+        ), adjacent_pairs(call.argv))
+        self.assertNotIn("--force", call.argv)
+        self.assertNotIn("--yolo", call.argv)
+
+    def test_cursor_effort_replaces_only_existing_effort(self):
+        self.assertEqual(
+            cursor_module.merge_cursor_effort(
+                "model[effort=low,context=1m]",
+                "high",
+            ),
+            "model[effort=high,context=1m]",
+        )
+        with self.assertRaises(ValueError):
+            cursor_module.merge_cursor_effort("model[nested=[bad]]", "high")
+        with self.assertRaises(ValueError):
+            CursorAdapter().start(context(thinking_effort="high"))
+
+    @patch("bridge.quick_chat.model_discovery.subprocess.run")
+    def test_help_efforts_require_explicit_choices_for_the_requested_flag(self, run):
+        cases = (
+            (
+                ClaudeAdapter(),
+                "--effort <level>  Effort level (choices: low, medium, high)\n"
+                "--mode <mode>  possible values: unsafe\n",
+                ["low", "medium", "high"],
+                ("claude", "--help"),
+            ),
+            (
+                PiAdapter(),
+                "--thinking <level>  Set thinking level: off, low, high\n",
+                ["off", "low", "high"],
+                ("pi", "--help"),
+            ),
+            (
+                GrokAdapter(),
+                "--reasoning-effort <EFFORT>  Set reasoning effort\n",
+                [],
+                ("grok", "--help"),
+            ),
+        )
+        for adapter, stdout, expected, argv in cases:
+            with self.subTest(adapter=adapter.id):
+                run.reset_mock()
+                run.return_value = Mock(returncode=0, stdout=stdout, stderr="")
+                self.assertEqual(
+                    [option.id for option in adapter.effort_options(Path.home())],
+                    expected,
+                )
+                self.assertEqual(run.call_args.args[0], argv)
+
+    @patch("bridge.quick_chat.model_discovery.subprocess.run")
+    def test_catalog_efforts_come_only_from_explicit_variants_and_parameters(self, run):
+        run.return_value = Mock(
+            returncode=0,
+            stdout=(
+                "anthropic/claude-sonnet-4\n"
+                "  variants: low, high\n"
+                "openai/gpt-5\n"
+            ),
+            stderr="",
+        )
+        opencode_models = OpenCodeAdapter().discover_models(Path.home())
+        self.assertEqual(
+            [option.id for option in opencode_models[0].efforts],
+            ["low", "high"],
+        )
+        self.assertIsNone(opencode_models[1].efforts)
+
+        run.return_value = Mock(
+            returncode=0,
+            stdout=(
+                "claude-opus-4-8[context=1m] - Claude Opus\n"
+                "claude-opus-4-8[context=1m,effort=low] - Claude Opus\n"
+                "claude-opus-4-8[context=1m,effort=high] - Claude Opus\n"
+            ),
+            stderr="",
+        )
+        cursor_models = CursorAdapter().discover_models(Path.home())
+        self.assertEqual(
+            [model.id for model in cursor_models],
+            ["claude-opus-4-8[context=1m]"],
+        )
+        self.assertEqual(
+            [option.id for option in cursor_models[0].efforts],
+            ["low", "high"],
+        )
+
     @patch("bridge.quick_chat.model_discovery.subprocess.run")
     def test_cli_catalog_commands_are_parsed_into_selectable_models(self, run):
         fixtures = (
