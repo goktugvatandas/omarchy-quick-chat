@@ -10,9 +10,67 @@ from typing import Any, Literal, Mapping
 
 
 PROFILE_ID_PATTERN = re.compile(r"[a-z0-9][a-z0-9._-]{0,63}\Z")
+EFFORT_ID_PATTERN = re.compile(r"[a-z0-9][a-z0-9._-]{0,31}\Z")
 WORKING_DIRECTORY_STRATEGIES = {"home", "fixed", "active-project"}
 PERMISSION_POLICIES = {"read-only", "ask"}
 MESSAGE_ROLES = {"user", "assistant", "system", "tool"}
+UI_SHORTCUT_ACTIONS = (
+    "focusInput",
+    "model",
+    "effort",
+    "history",
+    "settings",
+    "private",
+    "newChat",
+)
+DEFAULT_UI_SHORTCUTS = {
+    "focusInput": "Ctrl+L",
+    "model": "Ctrl+K",
+    "effort": "Ctrl+.",
+    "history": "Ctrl+H",
+    "settings": "Ctrl+,",
+    "private": "Ctrl+Shift+P",
+    "newChat": "Ctrl+N",
+}
+RESERVED_UI_SHORTCUTS = {
+    "Enter",
+    "Ctrl+Enter",
+    "Escape",
+    "Alt+Left",
+    "Tab",
+    "Shift+Tab",
+}
+_MODIFIER_ALIASES = {
+    "alt": "Alt",
+    "cmd": "Meta",
+    "command": "Meta",
+    "control": "Ctrl",
+    "ctrl": "Ctrl",
+    "meta": "Meta",
+    "shift": "Shift",
+    "super": "Meta",
+    "win": "Meta",
+}
+_MODIFIER_ORDER = ("Ctrl", "Alt", "Shift", "Meta")
+_NAMED_KEYS = {
+    "backspace": "Backspace",
+    "delete": "Delete",
+    "down": "Down",
+    "end": "End",
+    "enter": "Enter",
+    "escape": "Escape",
+    "esc": "Escape",
+    "home": "Home",
+    "insert": "Insert",
+    "left": "Left",
+    "pagedown": "PageDown",
+    "pageup": "PageUp",
+    "return": "Enter",
+    "right": "Right",
+    "space": "Space",
+    "tab": "Tab",
+    "up": "Up",
+}
 
 
 def require_identifier(name: str, value: Any) -> str:
@@ -29,6 +87,68 @@ def require_optional_string(name: str, value: Any) -> str | None:
     if not isinstance(value, str):
         raise ValueError(f"{name} must be a string or null")
     return value
+
+
+def validate_thinking_effort(value: Any) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str) or not EFFORT_ID_PATTERN.fullmatch(value):
+        raise ValueError("thinking effort has an invalid format")
+    return value
+
+
+def canonicalize_ui_shortcut(value: Any) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError("shortcut must be a non-empty string")
+    tokens = [token.strip() for token in value.split("+")]
+    if any(not token for token in tokens):
+        raise ValueError("shortcut contains an empty key")
+
+    modifiers: set[str] = set()
+    keys: list[str] = []
+    for token in tokens:
+        modifier = _MODIFIER_ALIASES.get(token.lower())
+        if modifier is not None:
+            if modifier in modifiers:
+                raise ValueError("shortcut repeats a modifier")
+            modifiers.add(modifier)
+        else:
+            keys.append(token)
+    if len(keys) != 1:
+        raise ValueError("shortcut must contain exactly one non-modifier key")
+
+    raw_key = keys[0]
+    lowered = raw_key.lower()
+    if lowered in _NAMED_KEYS:
+        key = _NAMED_KEYS[lowered]
+    elif re.fullmatch(r"f(?:[1-9]|1[0-9]|2[0-4])", lowered):
+        key = lowered.upper()
+    elif len(raw_key) == 1 and raw_key.isprintable() and not raw_key.isspace():
+        key = raw_key.upper() if raw_key.isalpha() else raw_key
+    else:
+        raise ValueError("shortcut key is not supported")
+    return "+".join(
+        [modifier for modifier in _MODIFIER_ORDER if modifier in modifiers] + [key]
+    )
+
+
+def validate_ui_shortcuts(value: Any) -> dict[str, str]:
+    if not isinstance(value, Mapping):
+        raise ValueError("uiShortcuts must be an object")
+    if set(value) != set(UI_SHORTCUT_ACTIONS):
+        raise ValueError("uiShortcuts must contain every Quick Chat action")
+
+    result: dict[str, str] = {}
+    seen: set[str] = set()
+    for action in UI_SHORTCUT_ACTIONS:
+        shortcut = canonicalize_ui_shortcut(value[action])
+        if shortcut in RESERVED_UI_SHORTCUTS:
+            raise ValueError(f"{shortcut} is reserved for Quick Chat navigation")
+        if shortcut in seen:
+            raise ValueError(f"duplicate Quick Chat shortcut: {shortcut}")
+        seen.add(shortcut)
+        result[action] = shortcut
+    return result
 
 
 def validate_history_limit(value: Any) -> int | None:
@@ -63,6 +183,7 @@ class Profile:
     adapter_id: str
     icon: str = ""
     model: str | None = None
+    thinking_effort: str | None = None
     system_instructions: str = ""
     working_directory_strategy: Literal["home", "fixed", "active-project"] = "home"
     working_directory: str | None = None
@@ -87,6 +208,7 @@ class Profile:
         if not isinstance(self.icon, str):
             raise ValueError("profile icon must be a string")
         require_optional_string("model", self.model)
+        validate_thinking_effort(self.thinking_effort)
         if not isinstance(self.system_instructions, str):
             raise ValueError("system instructions must be a string")
         if self.working_directory_strategy not in WORKING_DIRECTORY_STRATEGIES:
@@ -122,6 +244,7 @@ class Profile:
             "adapterId": self.adapter_id,
             "icon": self.icon,
             "model": self.model,
+            "thinkingEffort": self.thinking_effort,
             "systemInstructions": self.system_instructions,
             "workingDirectoryStrategy": self.working_directory_strategy,
             "workingDirectory": self.working_directory,
@@ -149,6 +272,7 @@ class Profile:
             adapter_id=value.get("adapterId"),
             icon=value.get("icon", ""),
             model=value.get("model"),
+            thinking_effort=validate_thinking_effort(value.get("thinkingEffort")),
             system_instructions=value.get("systemInstructions", ""),
             working_directory_strategy=value.get("workingDirectoryStrategy", "home"),
             working_directory=value.get("workingDirectory"),
@@ -187,14 +311,17 @@ DEFAULT_PROFILES = (
 
 @dataclass(frozen=True)
 class Config:
-    schema_version: int = 1
+    schema_version: int = 2
     profiles: tuple[Profile, ...] = DEFAULT_PROFILES
     selected_profile_id: str = "codex"
     history_limit: int | None = 20
-    default_shortcut: str = "SUPER ALT, SPACE"
+    default_shortcut: str = "SUPER ALT, C"
+    ui_shortcuts: Mapping[str, str] = field(
+        default_factory=lambda: dict(DEFAULT_UI_SHORTCUTS)
+    )
 
     def __post_init__(self) -> None:
-        if self.schema_version != 1:
+        if self.schema_version != 2:
             raise ValueError("unsupported config schema version")
         if not isinstance(self.profiles, tuple) or not self.profiles:
             raise ValueError("config must contain at least one profile")
@@ -205,6 +332,7 @@ class Config:
             raise ValueError("selected profile does not exist")
         validate_history_limit(self.history_limit)
         require_identifier("default shortcut", self.default_shortcut)
+        object.__setattr__(self, "ui_shortcuts", validate_ui_shortcuts(self.ui_shortcuts))
 
     @classmethod
     def default(cls) -> Config:
@@ -219,6 +347,7 @@ class Config:
             "selectedProfileId": self.selected_profile_id,
             "historyLimit": self.history_limit,
             "defaultShortcut": self.default_shortcut,
+            "uiShortcuts": dict(self.ui_shortcuts),
             "profiles": [profile.to_dict() for profile in self.profiles],
         }
 
@@ -229,12 +358,25 @@ class Config:
         profiles = value.get("profiles")
         if not isinstance(profiles, list):
             raise ValueError("profiles must be an array")
+        schema_version = value.get("schemaVersion", 1)
+        if schema_version not in {1, 2}:
+            raise ValueError("unsupported config schema version")
+        default_shortcut = value.get(
+            "defaultShortcut",
+            "SUPER ALT, SPACE" if schema_version == 1 else "SUPER ALT, C",
+        )
+        ui_shortcuts = (
+            dict(DEFAULT_UI_SHORTCUTS)
+            if schema_version == 1
+            else value.get("uiShortcuts", DEFAULT_UI_SHORTCUTS)
+        )
         return cls(
-            schema_version=value.get("schemaVersion"),
+            schema_version=2,
             profiles=tuple(Profile.from_dict(profile) for profile in profiles),
             selected_profile_id=value.get("selectedProfileId"),
             history_limit=validate_history_limit(value.get("historyLimit")),
-            default_shortcut=value.get("defaultShortcut", "SUPER ALT, SPACE"),
+            default_shortcut=default_shortcut,
+            ui_shortcuts=ui_shortcuts,
         )
 
 

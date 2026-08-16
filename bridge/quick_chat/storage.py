@@ -76,11 +76,20 @@ class ConfigStore:
         try:
             with self.paths.config_file.open(encoding="utf-8") as stream:
                 value: Any = json.load(stream)
-            return Config.from_dict(value)
+            schema_version = value.get("schemaVersion", 1) if isinstance(value, dict) else None
+            config = Config.from_dict(value)
         except (OSError, json.JSONDecodeError, TypeError, ValueError) as error:
             quarantined = quarantine(self.paths.config_file)
             self.last_diagnostic = recovery_diagnostic(quarantined, error)
             return Config.default()
+        if schema_version == 1:
+            try:
+                self.save(config)
+            except OSError:
+                # A valid legacy config remains usable when the config mount is
+                # temporarily read-only. The next load retries the atomic upgrade.
+                pass
+        return config
 
     def save(self, config: Config) -> None:
         if not isinstance(config, Config):

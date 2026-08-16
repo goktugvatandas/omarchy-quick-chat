@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from unittest.mock import patch
 
 from bridge.quick_chat.history import HistoryStore
 from bridge.quick_chat.models import Config, Conversation, Message, Profile
@@ -67,6 +68,45 @@ class StorageTests(unittest.TestCase):
         mode = stat.S_IMODE(self.paths.config_file.stat().st_mode)
         self.assertEqual(mode, 0o600)
         self.assertEqual(store.load(), changed)
+
+    def test_loading_v1_config_persists_one_time_v2_migration(self):
+        legacy = Config.default().to_dict()
+        legacy["schemaVersion"] = 1
+        legacy.pop("uiShortcuts", None)
+        legacy["defaultShortcut"] = "SUPER ALT, SPACE"
+        for profile in legacy["profiles"]:
+            profile.pop("thinkingEffort", None)
+        atomic_write_json(self.paths.config_file, legacy)
+
+        loaded = ConfigStore(self.paths).load()
+        persisted = json.loads(self.paths.config_file.read_text())
+
+        self.assertEqual(loaded.schema_version, 2)
+        self.assertEqual(loaded.default_shortcut, "SUPER ALT, SPACE")
+        self.assertEqual(persisted["schemaVersion"], 2)
+        self.assertIn("uiShortcuts", persisted)
+        self.assertTrue(
+            all("thinkingEffort" in profile for profile in persisted["profiles"])
+        )
+
+    def test_read_only_v1_migration_returns_valid_config_without_quarantine(self):
+        legacy = Config.default().to_dict()
+        legacy["schemaVersion"] = 1
+        legacy.pop("uiShortcuts", None)
+        for profile in legacy["profiles"]:
+            profile.pop("thinkingEffort", None)
+        atomic_write_json(self.paths.config_file, legacy)
+        store = ConfigStore(self.paths)
+
+        with patch.object(store, "save", side_effect=OSError("read only")):
+            loaded = store.load()
+
+        self.assertEqual(loaded.schema_version, 2)
+        self.assertTrue(self.paths.config_file.exists())
+        self.assertEqual(
+            list(self.paths.config_dir.glob("config.json.corrupt-*")),
+            [],
+        )
 
     def test_atomic_write_replaces_content_without_temp_files(self):
         target = self.paths.state_dir / "value.json"

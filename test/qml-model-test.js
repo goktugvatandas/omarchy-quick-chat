@@ -51,6 +51,25 @@ assert.equal(duplicated.profiles[1].id, "work-copy")
 assert.equal(ProfileModel.duplicate(duplicated, "work").profiles[2].id, "work-copy-2")
 assert.throws(() => ProfileModel.remove(profiles, "work", false))
 
+const migratedProfiles = ProfileModel.normalize({
+  schemaVersion: 1,
+  selectedProfileId: "work",
+  historyLimit: 20,
+  defaultShortcut: "SUPER ALT, SPACE",
+  profiles: [{ id: "work", name: "Work", adapterId: "codex" }]
+})
+assert.equal(migratedProfiles.schemaVersion, 2)
+assert.equal(migratedProfiles.defaultShortcut, "SUPER ALT, SPACE")
+assert.equal(migratedProfiles.profiles[0].thinkingEffort, null)
+assert.equal(migratedProfiles.uiShortcuts.effort, "Ctrl+.")
+assert.equal(
+  ProfileModel.setUiShortcut(migratedProfiles, "private", "control+shift+p")
+    .uiShortcuts.private,
+  "Ctrl+Shift+P"
+)
+assert.throws(() => ProfileModel.setUiShortcut(migratedProfiles, "model", "Enter"))
+assert.throws(() => ProfileModel.setUiShortcut(migratedProfiles, "history", "Ctrl+K"))
+
 const pickerProfiles = [
   { id: "codex", name: "Codex", icon: "C", adapterId: "codex", model: "gpt-5.6-sol" },
   { id: "claude", name: "Claude Code", icon: "A", adapterId: "claude", model: null }

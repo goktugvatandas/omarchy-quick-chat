@@ -11,7 +11,7 @@ Item {
   property var pluginRegistry: null
   property string lastError: ""
   property var profiles: [
-    { id: "codex", name: "Codex", shortcut: "SUPER ALT, SPACE" },
+    { id: "codex", name: "Codex", shortcut: "SUPER ALT, C" },
     { id: "claude", name: "Claude Code", shortcut: null },
     { id: "opencode", name: "OpenCode", shortcut: null },
     { id: "grok", name: "Grok", shortcut: null },
@@ -47,7 +47,8 @@ Item {
   function loadConfig(content) {
     try {
       var config = JSON.parse(String(content || ""))
-      if (!config || config.schemaVersion !== 1 || !Array.isArray(config.profiles))
+      if (!config || (config.schemaVersion !== 1 && config.schemaVersion !== 2)
+          || !Array.isArray(config.profiles))
         throw new Error("invalid schema")
       profiles = config.profiles.map(function(profile) {
         return {

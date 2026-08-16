@@ -20,8 +20,8 @@ class FakeHyprctl:
 
 
 class ShortcutTests(unittest.TestCase):
-    def test_default_shortcut_is_super_alt_space(self):
-        self.assertEqual(Config.default().default_shortcut, "SUPER ALT, SPACE")
+    def test_fresh_default_shortcut_is_super_alt_c(self):
+        self.assertEqual(Config.default().default_shortcut, "SUPER ALT, C")
         self.assertEqual(normalize_shortcut("alt super, space"), "SUPER ALT, SPACE")
 
     def test_invalid_modifiers_and_keys_are_rejected(self):
@@ -33,7 +33,7 @@ class ShortcutTests(unittest.TestCase):
     def test_existing_foreign_binding_is_not_overwritten(self):
         runner = FakeHyprctl([{
             "mods": "SUPER ALT",
-            "key": "SPACE",
+            "key": "C",
             "dispatcher": "exec",
             "arg": "something-else",
             "description": "Apps menu",
@@ -61,7 +61,7 @@ class ShortcutTests(unittest.TestCase):
     def test_modmask_is_understood_for_conflict_detection(self):
         runner = FakeHyprctl([{
             "modmask": 72,
-            "key": "SPACE",
+            "key": "C",
             "dispatcher": "global",
             "arg": "another.plugin:open",
         }])
