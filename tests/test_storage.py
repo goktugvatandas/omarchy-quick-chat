@@ -46,6 +46,10 @@ class StorageTests(unittest.TestCase):
         root = Path(self.temporary.name)
         self.assertEqual(self.paths.config_file, root / "config/omarchy/quick-chat/config.json")
         self.assertEqual(self.paths.history_file, root / "state/omarchy/quick-chat/history.json")
+        self.assertEqual(
+            self.paths.menu_extension_file,
+            root / "home/.config/omarchy/extensions/omarchy-menu.jsonc",
+        )
         self.assertEqual(self.paths.capture_dir, root / "runtime/omarchy-quick-chat")
 
     def test_default_config_has_six_profiles_and_twenty_item_retention(self):

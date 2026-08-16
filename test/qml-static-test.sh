@@ -57,6 +57,9 @@ assert "onBridgePathChanged:" in service, (
 assert 'shortcutSync.command = [bridgePath, "shortcuts", "sync"]' in service, (
     "shortcut sync must assign argv before starting its process"
 )
+assert 'menuInstall.command = [bridgePath, "menu", "install"]' in service, (
+    "service must install the Omarchy menu entry after manifest injection"
+)
 
 inline_error = (root / "ui/InlineError.qml").read_text()
 for code in (

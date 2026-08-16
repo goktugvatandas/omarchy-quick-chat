@@ -11,6 +11,7 @@ from typing import Mapping
 
 @dataclass(frozen=True)
 class PathSet:
+    home: Path
     config_dir: Path
     state_dir: Path
     capture_dir: Path
@@ -22,6 +23,10 @@ class PathSet:
     @property
     def history_file(self) -> Path:
         return self.state_dir / "history.json"
+
+    @property
+    def menu_extension_file(self) -> Path:
+        return self.home / ".config" / "omarchy" / "extensions" / "omarchy-menu.jsonc"
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> PathSet:
@@ -38,6 +43,7 @@ class PathSet:
             else Path(tempfile.gettempdir()) / f"omarchy-{os.getuid()}"
         )
         return cls(
+            home=home,
             config_dir=config_home / "omarchy" / "quick-chat",
             state_dir=state_home / "omarchy" / "quick-chat",
             capture_dir=runtime_home / "omarchy-quick-chat",

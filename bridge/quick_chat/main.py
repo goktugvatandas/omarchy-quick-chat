@@ -19,6 +19,7 @@ from .context.ocr import OcrProvider
 from .context.omarchy import OmarchyQueryProvider
 from .context.selection import SelectionProvider
 from .history import HistoryStore
+from .menu import install_menu_entry
 from .models import Config, Conversation, Message
 from .paths import PathSet
 from .protocol import Event, MAX_REQUEST_BYTES, ProtocolError, Request
@@ -379,6 +380,11 @@ def main(
             "applied": list(result.applied),
             "removed": list(result.removed),
         }) + "\n")
+        output_stream.flush()
+        return 0
+    if arguments == ["menu", "install"]:
+        result = install_menu_entry(PathSet.from_env().menu_extension_file)
+        output_stream.write(json.dumps(result.to_dict(), ensure_ascii=False) + "\n")
         output_stream.flush()
         return 0
     if arguments:

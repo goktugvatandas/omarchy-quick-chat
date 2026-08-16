@@ -26,13 +26,22 @@ Item {
     : ""
 
   onBridgePathChanged: {
-    Qt.callLater(function() { root.syncShortcuts() })
+    Qt.callLater(function() {
+      root.syncShortcuts()
+      root.installMenuEntry()
+    })
   }
 
   function syncShortcuts() {
     if (!bridgePath || shortcutSync.running) return
     shortcutSync.command = [bridgePath, "shortcuts", "sync"]
     shortcutSync.running = true
+  }
+
+  function installMenuEntry() {
+    if (!bridgePath || menuInstall.running) return
+    menuInstall.command = [bridgePath, "menu", "install"]
+    menuInstall.running = true
   }
 
   function loadConfig(content) {
@@ -88,6 +97,24 @@ Item {
             root.lastError = "Shortcut conflicts: " + JSON.stringify(result.conflicts)
         } catch (error) {
           root.lastError = "Shortcut sync returned invalid data."
+        }
+      }
+    }
+    stderr: SplitParser {
+      onRead: function(line) { root.lastError = line }
+    }
+  }
+
+  Process {
+    id: menuInstall
+    stdout: SplitParser {
+      onRead: function(line) {
+        try {
+          var result = JSON.parse(line)
+          if (!result.entryId)
+            root.lastError = "Quick Chat menu integration returned invalid data."
+        } catch (error) {
+          root.lastError = "Quick Chat menu integration returned invalid data."
         }
       }
     }
