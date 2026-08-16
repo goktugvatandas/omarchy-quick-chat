@@ -224,6 +224,8 @@ def run(input_stream: TextIO, output_stream: TextIO) -> None:
                 request_id = decoded["requestId"] or "bridge"
             request = Request.from_dict(decoded)
             if request.type == "run":
+                paths.state_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+                paths.state_dir.chmod(0o700)
                 config = ConfigStore(paths).load()
                 engine.config = config
                 for attachment in request.attachments:

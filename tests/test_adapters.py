@@ -6,6 +6,10 @@ from pathlib import Path
 from bridge.quick_chat.adapters.base import AdapterContext, AdapterEvent
 from bridge.quick_chat.adapters.claude import ClaudeAdapter
 from bridge.quick_chat.adapters.codex import CodexAdapter
+from bridge.quick_chat.adapters.cursor import CursorAdapter
+from bridge.quick_chat.adapters.grok import GrokAdapter
+from bridge.quick_chat.adapters.opencode import OpenCodeAdapter
+from bridge.quick_chat.adapters.pi import PiAdapter
 from bridge.quick_chat.protocol import Attachment
 
 
@@ -106,6 +110,71 @@ class ClaudeAdapterTests(unittest.TestCase):
             "complete",
         ])
         self.assertFalse(adapter.capabilities.native_images)
+
+
+class RemainingAdapterTests(unittest.TestCase):
+    def test_process_adapters_never_auto_approve(self):
+        calls = [
+            OpenCodeAdapter().start(context()),
+            GrokAdapter().start(context()),
+            CursorAdapter().start(context()),
+            PiAdapter().start(context()),
+        ]
+        forbidden = {"--auto", "--always-approve", "--force", "--yolo"}
+        for call in calls:
+            self.assertTrue(forbidden.isdisjoint(call.argv), call.argv)
+
+    def test_opencode_supports_model_session_and_native_files(self):
+        attachment = Attachment("one", "image", "/tmp/image.png", None, "image/png")
+        call = OpenCodeAdapter().start(context(
+            model="provider/model",
+            session_id="session-1",
+            attachments=(attachment,),
+        ))
+        pairs = adjacent_pairs(call.argv)
+        self.assertEqual(call.argv[:4], ("opencode", "run", "--format", "json"))
+        self.assertIn(("--session", "session-1"), pairs)
+        self.assertIn(("--file", "/tmp/image.png"), pairs)
+        self.assertNotIn("--auto", call.argv)
+
+    def test_grok_uses_only_read_tools(self):
+        call = GrokAdapter().start(context())
+        self.assertIn("read_file,grep,list_dir", call.argv)
+        self.assertIn(("--disallowed-tools", "Agent"), adjacent_pairs(call.argv))
+        self.assertNotIn("--always-approve", call.argv)
+
+    def test_cursor_uses_resume_without_force(self):
+        call = CursorAdapter().start(context(session_id="cursor-session"))
+        self.assertIn("--resume=cursor-session", call.argv)
+        self.assertNotIn("--force", call.argv)
+
+    def test_pi_uses_only_read_tools_and_state_session(self):
+        with tempfile.TemporaryDirectory() as state:
+            call = PiAdapter(state_dir=Path(state)).start(context(model="openai/gpt-5"))
+        self.assertIn("read,grep,find,ls", call.argv)
+        self.assertIn(("--provider", "openai"), adjacent_pairs(call.argv))
+        self.assertIn(("--model", "gpt-5"), adjacent_pairs(call.argv))
+        session_path = call.argv[call.argv.index("--session") + 1]
+        self.assertTrue(session_path.startswith(state))
+        for forbidden in ("bash", "edit", "write"):
+            self.assertNotIn(forbidden, call.argv)
+
+    def test_four_adapter_fixtures_normalize_streams(self):
+        fixtures = (
+            (OpenCodeAdapter(), "opencode-stream.jsonl"),
+            (GrokAdapter(), "grok-stream.jsonl"),
+            (CursorAdapter(), "cursor-stream.jsonl"),
+            (PiAdapter(), "pi-stream.jsonl"),
+        )
+        for adapter, fixture in fixtures:
+            with self.subTest(adapter=adapter.id):
+                events = []
+                for line in (FIXTURES / fixture).read_text().splitlines():
+                    events.extend(adapter.parse_event(AdapterEvent("stdout", {"text": line})))
+                self.assertEqual(
+                    [event.type for event in events],
+                    ["session", "text_delta", "complete"],
+                )
 
 
 if __name__ == "__main__":

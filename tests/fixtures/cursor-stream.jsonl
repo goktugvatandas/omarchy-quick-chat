@@ -1,0 +1,3 @@
+{"type":"system","subtype":"init","session_id":"cursor-session-1"}
+{"type":"assistant","delta":{"text":"Hello from Cursor"}}
+{"type":"result","is_error":false}

@@ -19,10 +19,18 @@ class AdapterRegistry:
         if adapters is None:
             from .claude import ClaudeAdapter
             from .codex import CodexAdapter
+            from .cursor import CursorAdapter
+            from .grok import GrokAdapter
+            from .opencode import OpenCodeAdapter
+            from .pi import PiAdapter
 
             adapters = {
                 "codex": CodexAdapter(),
                 "claude": ClaudeAdapter(),
+                "opencode": OpenCodeAdapter(),
+                "grok": GrokAdapter(),
+                "cursor": CursorAdapter(),
+                "pi": PiAdapter(),
             }
         if adapters:
             for adapter_id, adapter in adapters.items():
