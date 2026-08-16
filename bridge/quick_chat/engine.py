@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import threading
+import queue
 from pathlib import Path
 from typing import Iterator
 
@@ -73,15 +74,34 @@ class Engine:
                 "adapterId": profile.adapter_id,
             })
 
-            normalized: list[AdapterEvent] = []
+            normalized: queue.Queue[AdapterEvent] = queue.Queue()
+            result_holder = []
+            transport_errors: list[Exception] = []
+            transport_done = threading.Event()
 
             def emit(raw_event: AdapterEvent) -> None:
-                normalized.extend(adapter.parse_event(raw_event))
+                for adapter_event in adapter.parse_event(raw_event):
+                    normalized.put(adapter_event)
 
-            result = self.transport.run(request.request_id, invocation, emit)
+            def run_transport() -> None:
+                try:
+                    result_holder.append(
+                        self.transport.run(request.request_id, invocation, emit)
+                    )
+                except Exception as error:
+                    transport_errors.append(error)
+                finally:
+                    transport_done.set()
+
+            worker = threading.Thread(target=run_transport, daemon=True)
+            worker.start()
             terminal_data: dict[str, object] = {}
             adapter_error = False
-            for adapter_event in normalized:
+            while not transport_done.is_set() or not normalized.empty():
+                try:
+                    adapter_event = normalized.get(timeout=0.05)
+                except queue.Empty:
+                    continue
                 if adapter_event.type in {"complete", "error"}:
                     terminal_data.update(adapter_event.data)
                     adapter_error = adapter_error or adapter_event.type == "error"
@@ -90,6 +110,15 @@ class Engine:
                     "status", "text_delta", "tool_request", "session"
                 }:
                     yield Event(adapter_event.type, request.request_id, adapter_event.data)
+            worker.join()
+
+            if transport_errors:
+                yield Event("error", request.request_id, {
+                    "code": "transport_failed",
+                    "message": str(transport_errors[0]),
+                })
+                return
+            result = result_holder[0]
 
             if result.timed_out:
                 yield Event("error", request.request_id, {
