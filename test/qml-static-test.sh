@@ -16,6 +16,7 @@ assert re.search(r"\bItem\s*\{", menu), "QuickChat.qml root must be an Item"
 assert re.search(r"\bItem\s*\{", service), "Service.qml root must be an Item"
 assert re.search(r"\bfunction\s+open\s*\(", menu), "menu must implement open()"
 assert re.search(r"\bfunction\s+close\s*\(", menu), "menu must implement close()"
+assert 'import "ui"' in menu, "menu must import its local UI component directory"
 
 bridge = (root / "BridgeClient.qml").read_text()
 assert "stdinEnabled: true" in bridge, "bridge process must accept JSONL stdin"

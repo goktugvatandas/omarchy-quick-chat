@@ -3,6 +3,7 @@ import Quickshell.Wayland
 import QtQuick
 import qs.Commons
 import qs.Ui
+import "ui"
 
 Item {
   id: root
