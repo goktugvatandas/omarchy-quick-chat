@@ -36,6 +36,10 @@ class ProcessAdapterBase:
     def degrade(self) -> None:
         self._degraded = True
 
+    @staticmethod
+    def is_launcher_preamble(text: str) -> bool:
+        return text.startswith("mise ") and " tools: " in text
+
     def discover_models(self, cwd: Path | None = None) -> tuple[ModelOption, ...]:
         return ()
 
@@ -66,7 +70,10 @@ class ProcessAdapterBase:
             }
 
         version = (result.stdout or result.stderr).strip().splitlines()
-        version_text = version[0] if version else ""
+        version_text = next(
+            (line for line in version if not self.is_launcher_preamble(line)),
+            version[0] if version else "",
+        )
         supported = result.returncode == 0 and bool(VERSION_PATTERN.search(version_text))
         if not supported:
             self.degrade()

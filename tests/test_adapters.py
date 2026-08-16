@@ -61,6 +61,22 @@ def adjacent_pairs(values):
 
 
 class CodexAdapterTests(unittest.TestCase):
+    @patch("bridge.quick_chat.adapters.process_base.subprocess.run")
+    def test_detection_uses_provider_version_after_mise_preamble(self, run):
+        run.return_value = Mock(
+            returncode=0,
+            stdout=(
+                "mise ~/.config/mise/config.toml tools: codex@0.147.0\n"
+                "codex-cli 0.147.0\n"
+            ),
+            stderr="",
+        )
+
+        detection = CodexAdapter().detect()
+
+        self.assertEqual(detection["version"], "codex-cli 0.147.0")
+        self.assertTrue(detection["structured"])
+
     def test_codex_exchange_keeps_jsonl_server_open_for_async_response(self):
         server = (
             "import json,sys,time\n"
@@ -207,6 +223,35 @@ class ClaudeAdapterTests(unittest.TestCase):
 
 
 class RemainingAdapterTests(unittest.TestCase):
+    def test_structured_adapters_ignore_mise_launcher_preamble(self):
+        cases = (
+            (CodexAdapter(), "codex-stream.jsonl"),
+            (ClaudeAdapter(), "claude-stream.jsonl"),
+            (OpenCodeAdapter(), "opencode-stream.jsonl"),
+            (GrokAdapter(), "grok-stream.jsonl"),
+        )
+        for adapter, fixture in cases:
+            with self.subTest(adapter=adapter.id):
+                preamble = AdapterEvent("stdout", {
+                    "text": (
+                        "mise ~/.config/mise/config.toml tools: "
+                        f"{adapter.id}@1.2.3"
+                    ),
+                })
+                self.assertEqual(adapter.parse_event(preamble), [])
+
+                events = []
+                for line in (FIXTURES / fixture).read_text().splitlines():
+                    events.extend(adapter.parse_event(
+                        AdapterEvent("stdout", {"text": line})
+                    ))
+
+                self.assertEqual(
+                    [event.type for event in events],
+                    ["session", "text_delta", "complete"],
+                )
+                self.assertTrue(adapter.capabilities.streaming)
+
     def test_each_adapter_maps_native_thinking_effort(self):
         cases = (
             (

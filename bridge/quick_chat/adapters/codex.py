@@ -67,6 +67,8 @@ class CodexAdapter(ProcessAdapterBase):
         text = str(event.data.get("text", ""))
         if self._degraded:
             return [AdapterEvent("text_delta", {"text": text + "\n"})]
+        if self.is_launcher_preamble(text):
+            return []
         try:
             value = json.loads(text)
         except json.JSONDecodeError:

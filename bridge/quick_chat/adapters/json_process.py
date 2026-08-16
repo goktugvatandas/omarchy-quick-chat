@@ -21,6 +21,8 @@ class JsonProcessAdapter(ProcessAdapterBase):
         text = str(event.data.get("text", ""))
         if self._degraded:
             return {"__plain_text": text + "\n"}
+        if self.is_launcher_preamble(text):
+            return None
         try:
             value = json.loads(text)
         except json.JSONDecodeError:
