@@ -586,6 +586,7 @@ Item {
     spacing: Style.space(12)
 
     ChatHeader {
+      id: header
       Layout.fillWidth: true
       profileId: root.profileId
       profiles: root.profileState ? root.profileState.profiles : []
@@ -675,6 +676,7 @@ Item {
             root.selectProfileModel(nextProfileId, modelId)
           }
           onEffortSelected: function(value) { root.selectThinkingEffort(value) }
+          onFocusHeaderRequested: header.focusMaximize()
           onModelDiscoveryRequested: function(nextProfileId, adapterId, refresh) {
             root.requestModels(adapterId, refresh, nextProfileId)
           }

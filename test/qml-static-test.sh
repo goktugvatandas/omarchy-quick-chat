@@ -180,6 +180,9 @@ assert 'root.privateMode ? "󰈉" : "󰈈"' in chat_header, (
 assert "signal moveRequested()" in chat_header
 assert "signal maximizeRequested()" in chat_header
 assert "property bool maximized" in chat_header
+assert "id: maximizeButton" in chat_header
+assert "function focusMaximize()" in chat_header
+assert "maximizeButton.forceActiveFocus()" in chat_header
 assert "onPressed: root.moveRequested()" in chat_header
 assert "onDoubleClicked: root.maximizeRequested()" in chat_header
 assert "anchors.right: actions.left" in chat_header, (
@@ -202,6 +205,11 @@ assert harness_index < effort_index < first_action_index, (
 assert "Qt.Key_Tab" in composer and "agentPicker.focusTrigger()" in composer, (
     "keyboard users must be able to move from the prompt to its adjacent picker"
 )
+assert "signal focusHeaderRequested()" in composer
+assert "Qt.Key_Backtab" in composer and "Qt.ShiftModifier" in composer
+assert "root.focusHeaderRequested()" in composer
+assert "id: header" in chat_surface
+assert "onFocusHeaderRequested: header.focusMaximize()" in chat_surface
 assert "function insertNewline()" in composer, (
     "the composer must own deterministic multiline insertion"
 )

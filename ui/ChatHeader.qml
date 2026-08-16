@@ -35,6 +35,10 @@ Item {
     return null
   }
 
+  function focusMaximize() {
+    maximizeButton.forceActiveFocus()
+  }
+
   implicitHeight: Math.max(agentIcon.implicitHeight, identity.implicitHeight, actions.implicitHeight)
 
   Text {
@@ -137,6 +141,7 @@ Item {
     }
 
     Button {
+      id: maximizeButton
       iconText: root.maximized ? "󰖯" : "󰖲"
       tooltipText: root.maximized ? "Restore window" : "Maximize window"
       foreground: Color.popups.text

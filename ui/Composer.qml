@@ -26,6 +26,7 @@ ColumnLayout {
   signal agentModelSelected(string profileId, string modelId)
   signal effortSelected(var value)
   signal modelDiscoveryRequested(string profileId, string adapterId, bool refresh)
+  signal focusHeaderRequested()
 
   function focusInput() {
     prompt.forceActiveFocus()
@@ -73,7 +74,11 @@ ColumnLayout {
     selectByMouse: true
 
     Keys.onPressed: function(event) {
-      if (event.key === Qt.Key_Tab && event.modifiers === Qt.NoModifier) {
+      if (event.key === Qt.Key_Backtab
+          || (event.key === Qt.Key_Tab && (event.modifiers & Qt.ShiftModifier))) {
+        root.focusHeaderRequested()
+        event.accepted = true
+      } else if (event.key === Qt.Key_Tab && event.modifiers === Qt.NoModifier) {
         agentPicker.focusTrigger()
         event.accepted = true
       } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
