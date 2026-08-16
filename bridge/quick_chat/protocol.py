@@ -102,6 +102,7 @@ class Request:
     prompt: str | None = None
     attachments: tuple[Attachment, ...] = ()
     private: bool = False
+    confirm: bool = False
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> Request:
@@ -130,6 +131,9 @@ class Request:
         private = value.get("private", False)
         if not isinstance(private, bool):
             raise ProtocolError("private must be a boolean")
+        confirm = value.get("confirm", False)
+        if not isinstance(confirm, bool):
+            raise ProtocolError("confirm must be a boolean")
         raw_attachments = value.get("attachments", [])
         if not isinstance(raw_attachments, list):
             raise ProtocolError("attachments must be an array")
@@ -160,6 +164,7 @@ class Request:
             prompt=prompt,
             attachments=attachments,
             private=private,
+            confirm=confirm,
         )
 
 

@@ -94,6 +94,20 @@ class RequestTests(unittest.TestCase):
         with self.assertRaises(ProtocolError):
             Request.from_dict(request)
 
+    def test_clear_confirmation_must_be_a_boolean(self):
+        parsed = Request.from_dict({
+            "type": "history.clear",
+            "requestId": "req-clear",
+            "confirm": True,
+        })
+        self.assertTrue(parsed.confirm)
+        with self.assertRaises(ProtocolError):
+            Request.from_dict({
+                "type": "history.clear",
+                "requestId": "req-clear",
+                "confirm": "yes",
+            })
+
 
 class EventTests(unittest.TestCase):
     def test_event_json_is_one_sanitized_line(self):

@@ -21,10 +21,14 @@ class FakeAdapter:
     id = "codex"
     capabilities = Capabilities(True, True, True, False, True, False)
 
+    def __init__(self):
+        self.contexts = []
+
     def detect(self):
         return {"available": True, "version": "test"}
 
     def start(self, context: AdapterContext):
+        self.contexts.append(context)
         return Invocation(("fake",), context.cwd, {"PATH": ""}, context.prompt)
 
     def parse_event(self, event: AdapterEvent):
@@ -64,7 +68,8 @@ def request(identifier="req-1"):
 
 class EngineTests(unittest.TestCase):
     def setUp(self):
-        self.registry = AdapterRegistry({"codex": FakeAdapter()})
+        self.adapter = FakeAdapter()
+        self.registry = AdapterRegistry({"codex": self.adapter})
 
     def test_engine_emits_start_delta_and_exactly_one_terminal_event(self):
         engine = Engine(self.registry, FakeTransport(), Config.default())
@@ -94,6 +99,16 @@ class EngineTests(unittest.TestCase):
             list(engine.handle(request("req-2")))
         transport.release.set()
         thread.join(timeout=3)
+
+    def test_existing_cli_session_is_passed_to_adapter(self):
+        engine = Engine(
+            self.registry,
+            FakeTransport(),
+            Config.default(),
+            session_resolver=lambda conversation_id, adapter_id: "session-existing",
+        )
+        list(engine.handle(request()))
+        self.assertEqual(self.adapter.contexts[0].session_id, "session-existing")
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ from __future__ import annotations
 import threading
 import queue
 from pathlib import Path
-from typing import Iterator
+from typing import Callable, Iterator
 
 from .adapters.base import AdapterContext, AdapterEvent
 from .adapters.registry import AdapterRegistry
@@ -19,10 +19,17 @@ class BusyError(RuntimeError):
 
 
 class Engine:
-    def __init__(self, registry: AdapterRegistry, transport: Transport, config: Config) -> None:
+    def __init__(
+        self,
+        registry: AdapterRegistry,
+        transport: Transport,
+        config: Config,
+        session_resolver: Callable[[str, str], str | None] | None = None,
+    ) -> None:
         self.registry = registry
         self.transport = transport
         self.config = config
+        self.session_resolver = session_resolver
         self._lock = threading.Lock()
         self._active_request_id: str | None = None
 
@@ -66,6 +73,14 @@ class Engine:
                 model=profile.model,
                 cwd=cwd,
                 attachments=request.attachments,
+                session_id=(
+                    self.session_resolver(
+                        request.conversation_id or "",
+                        profile.adapter_id,
+                    )
+                    if self.session_resolver is not None
+                    else None
+                ),
                 system_instructions=profile.system_instructions,
             )
             invocation = adapter.start(context)

@@ -99,12 +99,40 @@ function clearError(state) {
   return next
 }
 
+function loadConversation(state, conversation) {
+  if (!conversation || !conversation.id) throw new Error("invalid conversation")
+  var next = initialState(conversation.id, conversation.profileId || state.profileId)
+  next.messages = (conversation.messages || []).map(function(message) {
+    return {
+      role: message.role,
+      text: message.content || message.text || "",
+      attempts: message.role === "user" ? [] : undefined
+    }
+  })
+  var sessions = conversation.cliSessions || {}
+  var sessionKeys = Object.keys(sessions)
+  next.sessionId = sessions[next.profileId]
+    || (sessionKeys.length ? sessions[sessionKeys[0]] : null)
+  return next
+}
+
+function withFailedRun(prompt, code) {
+  var state = beginRun(initialState("conversation-test", "codex"), "request-1", prompt, [], false)
+  return reduce(state, {
+    type: "error",
+    requestId: "request-1",
+    data: { code: code, message: code }
+  })
+}
+
 if (typeof module !== "undefined") {
   module.exports = {
     initialState: initialState,
     beginRun: beginRun,
     reduce: reduce,
     retryRun: retryRun,
-    clearError: clearError
+    clearError: clearError,
+    loadConversation: loadConversation,
+    withFailedRun: withFailedRun
   }
 }

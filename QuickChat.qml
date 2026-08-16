@@ -58,10 +58,10 @@ Item {
     BorderSurface {
       id: card
       width: root.expanded
-        ? Math.min(Style.space(960), panel.width - Style.gapsOut * 2)
+        ? Math.min(Style.space(1040), panel.width - Style.gapsOut * 2)
         : Math.min(Style.space(620), panel.width - Style.gapsOut * 2)
       height: root.expanded
-        ? Math.min(Style.space(820), panel.height - Style.gapsOut * 2)
+        ? Math.min(Style.space(760), panel.height - Style.gapsOut * 2)
         : Math.min(Style.space(620), panel.height * 0.7)
       anchors.centerIn: parent
       radius: Style.cornerRadius
