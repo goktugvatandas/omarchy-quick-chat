@@ -8,7 +8,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 from bridge.quick_chat.main import main
-from bridge.quick_chat.menu import LEGACY_MENU_ENTRY, MENU_ENTRY_ID, install_menu_entry
+from bridge.quick_chat.menu import (
+    LEGACY_MENU_ENTRIES,
+    MENU_ENTRY_ID,
+    install_menu_entry,
+)
 
 
 def parse_jsonc(content: str) -> dict:
@@ -55,24 +59,32 @@ class MenuIntegrationTests(unittest.TestCase):
         self.assertFalse(result.changed)
         self.assertEqual(self.path.read_text(), before)
 
-    def test_upgrades_the_plugin_generated_entry_without_touching_comments(self):
-        legacy = json.dumps(LEGACY_MENU_ENTRY, ensure_ascii=False, separators=(",", ":"))
-        self.path.write_text(
-            "{\n"
-            f'  "{MENU_ENTRY_ID}": {legacy},\n'
-            "  // User-owned content stays byte-for-byte.\n"
-            '  "personal": {"label":"Personal"},\n'
-            "}\n"
-        )
+    def test_upgrades_every_plugin_generated_entry_without_touching_comments(self):
+        for legacy_entry in LEGACY_MENU_ENTRIES:
+            with self.subTest(legacy_when=legacy_entry["when"]):
+                legacy = json.dumps(
+                    legacy_entry, ensure_ascii=False, separators=(",", ":")
+                )
+                self.path.write_text(
+                    "{\n"
+                    f'  "{MENU_ENTRY_ID}": {legacy},\n'
+                    "  // User-owned content stays byte-for-byte.\n"
+                    '  "personal": {"label":"Personal"},\n'
+                    "}\n"
+                )
 
-        result = install_menu_entry(self.path)
-        content = self.path.read_text()
-        parsed = parse_jsonc(content)
+                result = install_menu_entry(self.path)
+                content = self.path.read_text()
+                parsed = parse_jsonc(content)
 
-        self.assertTrue(result.changed)
-        self.assertEqual(parsed[MENU_ENTRY_ID]["after"], "apps")
-        self.assertIn("// User-owned content stays byte-for-byte.", content)
-        self.assertEqual(parsed["personal"]["label"], "Personal")
+                self.assertTrue(result.changed)
+                self.assertEqual(parsed[MENU_ENTRY_ID]["after"], "apps")
+                self.assertIn(
+                    "goktugvatandas.quick-chat", parsed[MENU_ENTRY_ID]["action"]
+                )
+                self.assertNotIn("community.quick-chat", content)
+                self.assertIn("// User-owned content stays byte-for-byte.", content)
+                self.assertEqual(parsed["personal"]["label"], "Personal")
 
     def test_supports_items_wrapper(self):
         self.path.write_text('{\n  "items": {\n    "personal": {"label":"Personal"}\n  }\n}\n')
