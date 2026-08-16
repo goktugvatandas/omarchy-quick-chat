@@ -24,6 +24,11 @@ assert "SplitParser" in bridge, "bridge stdout must be split into lines"
 assert "JSON.stringify(object) + \"\\n\"" in bridge, "send() must write one JSON line"
 assert "stderr: SplitParser" in bridge, "stderr must remain separate"
 
+chat_surface = (root / "ui/ChatSurface.qml").read_text()
+assert 'import ".."' in chat_surface, (
+    "chat surface must import root-level plugin components"
+)
+
 service = (root / "Service.qml").read_text()
 shortcut = (root / "ShortcutDelegate.qml").read_text()
 assert "watchChanges: true" in service, "service must watch profile configuration"

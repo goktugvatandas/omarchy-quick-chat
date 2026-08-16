@@ -3,6 +3,7 @@ import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
 import qs.Commons
+import ".."
 import "../models/ChatModel.js" as ChatModel
 import "../models/ProfileModel.js" as ProfileModel
 import qs.Ui
