@@ -7,6 +7,10 @@ desktop toplevel: other windows stay usable, Omarchy can tile or maximize it,
 and Chat, History, and Settings share the current window geometry instead of
 switching to a different shell surface.
 
+| Chat | Launchers |
+| --- | --- |
+| ![Chat with a rendered Markdown reply](docs/chat.png) | ![Launcher list in Settings](docs/launchers.png) |
+
 The built-in launchers are Codex, Claude Code, OpenCode, Grok, Cursor, and Pi.
 Custom shell-free command launchers are also supported. Each launcher pairs an
 agent and model with an optional summon shortcut, and one launcher is the
@@ -14,22 +18,11 @@ default summoned by the main shortcut and the menu entry.
 
 ## Install
 
-For this development checkout:
-
 ```bash
-omarchy plugin add file:///home/g2v/Projects/omarchy/omarchy-quick-chat --enable
+omarchy plugin add https://github.com/goktugvatandas/omarchy-quick-chat.git --enable
 ```
 
-This repository currently has no `origin` remote. After publishing it, obtain
-the canonical URL with `git remote get-url origin`, then install that exact URL:
-
-```bash
-omarchy plugin add https://example.invalid/owner/omarchy-quick-chat.git --enable
-```
-
-Replace the example only with the value returned by `git remote get-url
-origin`. Update or remove the plugin with Omarchy's normal `omarchy plugin`
-commands.
+Update or remove the plugin with Omarchy's normal `omarchy plugin` commands.
 
 ## Use
 
