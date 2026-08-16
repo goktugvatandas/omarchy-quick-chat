@@ -106,6 +106,7 @@ Item {
   function open() { pickerPopup.open() }
   function close() { pickerPopup.close() }
   function toggle() { pickerPopup.opened ? pickerPopup.close() : pickerPopup.open() }
+  function focusTrigger() { trigger.forceActiveFocus() }
 
   onProfilesChanged: rebuildRows()
   onProfileIdChanged: rebuildRows()

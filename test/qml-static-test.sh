@@ -89,7 +89,7 @@ composer = (root / "ui/Composer.qml").read_text()
 assert "HarnessModelPicker {" in composer, (
     "the unified agent/model picker must sit beside the prompt controls"
 )
-assert "tabChangesFocus: true" in composer, (
+assert "Qt.Key_Tab" in composer and "agentPicker.focusTrigger()" in composer, (
     "keyboard users must be able to move from the prompt to its adjacent picker"
 )
 

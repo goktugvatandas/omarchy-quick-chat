@@ -38,10 +38,12 @@ ColumnLayout {
     wrapMode: TextEdit.Wrap
     textFormat: TextEdit.PlainText
     selectByMouse: true
-    tabChangesFocus: true
 
     Keys.onPressed: function(event) {
-      if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
+      if (event.key === Qt.Key_Tab && event.modifiers === Qt.NoModifier) {
+        agentPicker.focusTrigger()
+        event.accepted = true
+      } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
           && (event.modifiers & Qt.ControlModifier)) {
         if (!root.running && prompt.text.trim()) root.sendRequested(prompt.text)
         event.accepted = true
