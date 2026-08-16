@@ -43,7 +43,7 @@ BorderSurface {
     Text {
       Layout.fillWidth: true
       text: root.error ? (root.error.message || root.error.code || "Request failed") : ""
-      color: Color.menu.text
+      color: Color.popups.text
       font.family: Style.font.menuFamily
       font.pixelSize: Style.font.body
       wrapMode: Text.Wrap
@@ -53,7 +53,7 @@ BorderSurface {
     Button {
       visible: root.error && root.actionLabel(root.error.code)
       text: root.error ? root.actionLabel(root.error.code) : ""
-      foreground: Color.menu.text
+      foreground: Color.popups.text
       fontFamily: Style.font.menuFamily
       bordered: true
       onClicked: {
@@ -63,7 +63,7 @@ BorderSurface {
     }
     Button {
       text: "Dismiss"
-      foreground: Color.menu.text
+      foreground: Color.popups.text
       fontFamily: Style.font.menuFamily
       onClicked: root.dismissed()
     }

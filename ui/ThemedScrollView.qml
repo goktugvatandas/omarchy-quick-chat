@@ -16,8 +16,8 @@ Controls.ScrollView {
       implicitHeight: Style.space(40)
       radius: Style.cornerRadius > 0 ? width / 2 : 0
       color: verticalBar.pressed
-        ? Color.menu.selectedText
-        : Util.alpha(Color.menu.text, verticalBar.hovered ? 0.55 : 0.28)
+        ? Style.selectedStateColor(Color.popups.text, Color.accent)
+        : Util.alpha(Color.popups.text, verticalBar.hovered ? 0.55 : 0.28)
     }
 
     background: Item {}
@@ -32,8 +32,8 @@ Controls.ScrollView {
       implicitHeight: Style.space(5)
       radius: Style.cornerRadius > 0 ? height / 2 : 0
       color: horizontalBar.pressed
-        ? Color.menu.selectedText
-        : Util.alpha(Color.menu.text, horizontalBar.hovered ? 0.55 : 0.28)
+        ? Style.selectedStateColor(Color.popups.text, Color.accent)
+        : Util.alpha(Color.popups.text, horizontalBar.hovered ? 0.55 : 0.28)
     }
 
     background: Item {}

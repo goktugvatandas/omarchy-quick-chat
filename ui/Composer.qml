@@ -39,52 +39,57 @@ ColumnLayout {
 
   RowLayout {
     Layout.fillWidth: true
-    spacing: Style.space(4)
+    spacing: Style.spacing.sm
 
     Button {
-      text: "Window"
-      foreground: Color.menu.text
+      iconText: "󰖲"
+      tooltipText: "Attach active window"
+      foreground: Color.popups.text
       fontFamily: Style.font.menuFamily
+      horizontalPadding: Style.spacing.sm
       onClicked: root.contextRequested("window")
     }
     Button {
-      text: "Screen"
-      foreground: Color.menu.text
+      iconText: "󰍹"
+      tooltipText: "Attach full screen"
+      foreground: Color.popups.text
       fontFamily: Style.font.menuFamily
+      horizontalPadding: Style.spacing.sm
       onClicked: root.contextRequested("screen")
     }
     Button {
-      text: "App"
-      foreground: Color.menu.text
+      iconText: "󰣆"
+      tooltipText: "Attach active app details"
+      foreground: Color.popups.text
       fontFamily: Style.font.menuFamily
+      horizontalPadding: Style.spacing.sm
       onClicked: root.contextRequested("app")
     }
     Button {
-      text: "Selected text"
-      foreground: Color.menu.text
+      iconText: "󰆏"
+      tooltipText: "Attach selected text"
+      foreground: Color.popups.text
       fontFamily: Style.font.menuFamily
+      horizontalPadding: Style.spacing.sm
       onClicked: root.contextRequested("selection")
     }
 
     Text {
       Layout.fillWidth: true
-      horizontalAlignment: Text.AlignRight
       text: root.attachmentCount ? root.attachmentCount + " attached" : "Context is opt-in"
-      color: Util.alpha(Color.menu.text, 0.6)
+      color: Qt.darker(Color.popups.text, 1.4)
       font.family: Style.font.menuFamily
       font.pixelSize: Style.font.caption
+      verticalAlignment: Text.AlignVCenter
     }
-  }
-
-  RowLayout {
-    Layout.fillWidth: true
 
     Text {
-      Layout.fillWidth: true
-      text: "Ctrl+Enter sends · Enter adds a line"
-      color: Util.alpha(Color.menu.text, 0.6)
+      visible: !root.running
+      text: "CTRL ↵"
+      color: Qt.darker(Color.popups.text, 1.6)
       font.family: Style.font.menuFamily
-      font.pixelSize: Style.font.caption
+      font.pixelSize: Style.font.bodySmall
+      font.bold: true
     }
 
     Button {
@@ -100,7 +105,7 @@ ColumnLayout {
       visible: !root.running
       enabled: prompt.text.trim().length > 0
       text: "Send"
-      foreground: Color.menu.text
+      foreground: Color.popups.text
       fontFamily: Style.font.menuFamily
       bordered: true
       onClicked: root.sendRequested(prompt.text)

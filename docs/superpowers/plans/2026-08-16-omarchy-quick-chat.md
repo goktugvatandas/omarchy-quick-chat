@@ -631,7 +631,11 @@ History rows show title, profile name, update time, and private conversations ne
 
 - [ ] **Step 5: Implement expanded mode and settings shell**
 
-Expand toggles `compact` to `expanded` on the same root state. Expanded width is `min(Style.space(1040), panel.width - Style.gapsOut * 2)` and height is `min(Style.space(760), panel.height - Style.gapsOut * 2)`. It adds the history drawer and profile-settings pane without spawning another window or bridge.
+Expand toggles `compact` to `expanded` on the same root state. Expanded size
+is capped at `Style.space(760)` in each dimension and remains inside monitor
+gaps. Chat, History, and Profiles are mutually exclusive full-width pages in
+the same window and bridge. Each page uses first-party Omarchy panel hierarchy
+and shared `Ui` controls rather than desktop-style sidebars.
 
 - [ ] **Step 6: Implement clear history and retention controls**
 

@@ -24,11 +24,12 @@ Item {
     openingPayload = payloadJson || "{}"
     if (payload.profileId) chat.profileId = payload.profileId
     if (payload.conversationId) chat.conversationId = payload.conversationId
-    if (payload.acceptanceFixture === "settings") root.expanded = true
+    if (payload.acceptanceFixture === "settings" || payload.acceptanceFixture === "history")
+      root.expanded = true
     else if (payload.acceptanceFixture) root.expanded = false
     if (payload.acceptanceFixture) chat.showAcceptanceFixture(payload.acceptanceFixture)
     opened = true
-    Qt.callLater(function() { chat.focusComposer() })
+    Qt.callLater(function() { chat.focusActivePage() })
   }
 
   function close() {
@@ -44,7 +45,7 @@ Item {
   PanelWindow {
     id: panel
     visible: root.opened
-    readonly property int requestedWidth: root.expanded ? Style.space(1040) : Style.space(620)
+    readonly property int requestedWidth: root.expanded ? Style.space(760) : Style.space(620)
     readonly property int requestedHeight: root.expanded ? Style.space(760) : Style.space(620)
     implicitWidth: screen
       ? Math.min(requestedWidth, screen.width - Style.gapsOut * 2)
@@ -64,11 +65,11 @@ Item {
       id: card
       anchors.fill: parent
       radius: Style.cornerRadius
-      color: Color.menu.background
+      color: Color.popups.background
       borderSpec: Border.surfaceSpec(
-        "menu",
+        "popups",
         "border",
-        Color.menu.border,
+        Color.popups.border,
         Math.max(1, Style.space(2))
       )
       padding: Style.spacing.panelPadding

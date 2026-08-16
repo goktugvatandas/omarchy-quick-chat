@@ -3,7 +3,7 @@ import QtQuick.Layouts
 import qs.Commons
 import qs.Ui
 
-BorderSurface {
+FocusScope {
   id: root
 
   property var profileState: null
@@ -13,6 +13,10 @@ BorderSurface {
   signal profilePatchRequested(var values)
   signal duplicateRequested()
   signal removeRequested()
+
+  function focusPage() {
+    settingsScroll.forceActiveFocus()
+  }
 
   function loadProfile() {
     if (!activeProfile) return
@@ -74,240 +78,434 @@ BorderSurface {
     }
   }
 
-  color: Style.normalFillFor(Color.menu.text, Color.accent)
-  borderSpec: Border.controlSpec("normal", Color.menu.text, Color.accent)
-  radius: Style.cornerRadius
   onActiveProfileChanged: loadProfile()
 
   ThemedScrollView {
+    id: settingsScroll
     anchors.fill: parent
-    anchors.margins: Style.spacing.controlPaddingY
-    clip: true
 
     ColumnLayout {
-      width: parent.width
-      spacing: Style.spacing.controlGap
+      width: settingsScroll.availableWidth
+      spacing: Style.space(12)
 
-      Text {
+      PanelHero {
         Layout.fillWidth: true
-        text: "Profile settings"
-        color: Color.menu.text
-        font.family: Style.font.menuFamily
-        font.bold: true
-        font.pixelSize: Style.font.title
-      }
+        title: root.activeProfile ? root.activeProfile.name : "Profile"
+        meta: root.activeProfile
+          ? (String(root.activeProfile.adapterId || "custom") + " · "
+              + String(root.activeProfile.permissionPolicy || "read-only"))
+          : ""
+        foreground: Color.popups.text
+        fontFamily: Style.font.menuFamily
 
-      TextField {
-        id: nameField
-        Layout.fillWidth: true
-        foreground: Color.menu.text
-        font.family: Style.font.menuFamily
-        placeholderText: "Name"
-      }
-      TextField {
-        id: iconField
-        Layout.fillWidth: true
-        foreground: Color.menu.text
-        font.family: Style.font.menuFamily
-        placeholderText: "Icon"
-      }
-      Dropdown {
-        id: adapterPicker
-        Layout.fillWidth: true
-        showLabel: false
-        foreground: Color.menu.text
-        fontFamily: Style.font.menuFamily
-        options: ["codex", "claude", "opencode", "grok", "cursor", "pi", "custom"]
-        value: "codex"
-      }
-      Dropdown {
-        id: transportPicker
-        Layout.fillWidth: true
-        showLabel: false
-        foreground: Color.menu.text
-        fontFamily: Style.font.menuFamily
-        options: ["process", "auto", "acp"]
-        value: "process"
-      }
-      TextField {
-        id: modelField
-        Layout.fillWidth: true
-        foreground: Color.menu.text
-        font.family: Style.font.menuFamily
-        placeholderText: "Model"
-      }
-      ThemedTextArea {
-        id: instructionsField
-        Layout.fillWidth: true
-        Layout.preferredHeight: Style.space(90)
-        placeholderText: "System instructions"
-        wrapMode: TextEdit.Wrap
+        iconComponent: Component {
+          Text {
+            text: root.activeProfile ? (root.activeProfile.icon || "󰚩") : "󰚩"
+            color: Color.popups.text
+            font.family: Style.font.menuFamily
+            font.pixelSize: Style.font.display
+          }
+        }
+
+        trailingControl: Component {
+          Row {
+            spacing: Style.spacing.sm
+
+            PanelActionButton {
+              iconText: "󰆏"
+              tooltipText: "Duplicate profile"
+              foreground: Color.popups.text
+              fontFamily: Style.font.menuFamily
+              onClicked: root.duplicateRequested()
+            }
+
+            PanelActionButton {
+              iconText: "󰆴"
+              tooltipText: "Remove profile"
+              foreground: Color.popups.text
+              hoverColor: Color.urgent
+              fontFamily: Style.font.menuFamily
+              onClicked: removeDialog.opened = true
+            }
+          }
+        }
       }
 
-      Text {
+      PanelSeparator {
         Layout.fillWidth: true
-        visible: adapterPicker.value === "custom"
-        text: "Custom command"
-        color: Color.menu.text
-        font.family: Style.font.menuFamily
-        font.pixelSize: Style.font.subtitle
-        font.bold: true
+        foreground: Color.popups.text
       }
-      TextField {
-        id: customExecutable
-        Layout.fillWidth: true
-        visible: adapterPicker.value === "custom"
-        foreground: Color.menu.text
-        font.family: Style.font.menuFamily
-        placeholderText: "Executable"
-      }
-      ThemedTextArea {
-        id: customArguments
-        Layout.fillWidth: true
-        visible: adapterPicker.value === "custom"
-        placeholderText: "Arguments, one per line"
-      }
-      Toggle {
-        id: customStdin
-        Layout.fillWidth: true
-        visible: adapterPicker.value === "custom"
-        label: "Send prompt on stdin"
-        foreground: Color.menu.text
+
+      PanelSectionHeader {
+        text: "PROFILE"
+        foreground: Color.popups.text
         fontFamily: Style.font.menuFamily
-        onClicked: checked = !checked
       }
-      ThemedTextArea {
-        id: customReadOnly
+
+      GridLayout {
         Layout.fillWidth: true
-        visible: adapterPicker.value === "custom"
-        placeholderText: "Read-only arguments, one per line"
+        columns: 2
+        columnSpacing: Style.spacing.controlGap
+        rowSpacing: Style.spacing.controlGap
+
+        FormField {
+          Layout.fillWidth: true
+          label: "Name"
+          TextField {
+            id: nameField
+            width: parent.width
+            foreground: Color.popups.text
+            font.family: Style.font.menuFamily
+            placeholderText: "Profile name"
+          }
+        }
+
+        FormField {
+          Layout.fillWidth: true
+          label: "Icon"
+          TextField {
+            id: iconField
+            width: parent.width
+            foreground: Color.popups.text
+            font.family: Style.font.menuFamily
+            placeholderText: "Nerd Font glyph"
+          }
+        }
+
+        FormField {
+          Layout.fillWidth: true
+          label: "Harness"
+          Dropdown {
+            id: adapterPicker
+            width: parent.width
+            showLabel: false
+            foreground: Color.popups.text
+            fontFamily: Style.font.menuFamily
+            options: ["codex", "claude", "opencode", "grok", "cursor", "pi", "custom"]
+            value: "codex"
+          }
+        }
+
+        FormField {
+          Layout.fillWidth: true
+          label: "Model"
+          TextField {
+            id: modelField
+            width: parent.width
+            foreground: Color.popups.text
+            font.family: Style.font.menuFamily
+            placeholderText: "CLI default"
+          }
+        }
+
+        FormField {
+          Layout.fillWidth: true
+          label: "Transport"
+          Dropdown {
+            id: transportPicker
+            width: parent.width
+            showLabel: false
+            foreground: Color.popups.text
+            fontFamily: Style.font.menuFamily
+            options: ["process", "auto", "acp"]
+            value: "process"
+          }
+        }
+
+        FormField {
+          Layout.fillWidth: true
+          label: "Permission"
+          Dropdown {
+            id: permissionPicker
+            width: parent.width
+            showLabel: false
+            foreground: Color.popups.text
+            fontFamily: Style.font.menuFamily
+            options: ["read-only", "ask"]
+            value: "read-only"
+          }
+        }
       }
-      Dropdown {
-        id: customOutput
+
+      FormField {
         Layout.fillWidth: true
-        visible: adapterPicker.value === "custom"
-        showLabel: false
-        foreground: Color.menu.text
+        label: "System instructions"
+        ThemedTextArea {
+          id: instructionsField
+          width: parent.width
+          height: Style.space(88)
+          placeholderText: "Optional behavior for this profile"
+          wrapMode: TextEdit.Wrap
+        }
+      }
+
+      PanelSeparator {
+        Layout.fillWidth: true
+        foreground: Color.popups.text
+      }
+
+      PanelSectionHeader {
+        text: "WORKSPACE & CONTEXT"
+        foreground: Color.popups.text
         fontFamily: Style.font.menuFamily
-        options: ["plain", "jsonl"]
-        value: "plain"
       }
-      Dropdown {
-        id: directoryStrategy
+
+      GridLayout {
         Layout.fillWidth: true
-        showLabel: false
-        foreground: Color.menu.text
-        fontFamily: Style.font.menuFamily
-        options: ["home", "fixed", "active-project"]
-        value: "home"
+        columns: 2
+        columnSpacing: Style.spacing.controlGap
+        rowSpacing: Style.spacing.controlGap
+
+        FormField {
+          Layout.fillWidth: true
+          label: "Working directory"
+          Dropdown {
+            id: directoryStrategy
+            width: parent.width
+            showLabel: false
+            foreground: Color.popups.text
+            fontFamily: Style.font.menuFamily
+            options: [
+              { value: "home", label: "Home" },
+              { value: "fixed", label: "Fixed path" },
+              { value: "active-project", label: "Active project" }
+            ]
+            value: "home"
+          }
+        }
+
+        FormField {
+          Layout.fillWidth: true
+          label: "Shortcut"
+          TextField {
+            id: shortcutField
+            width: parent.width
+            foreground: Color.popups.text
+            font.family: Style.font.menuFamily
+            placeholderText: "SUPER ALT, SPACE"
+          }
+        }
+
+        FormField {
+          Layout.fillWidth: true
+          Layout.columnSpan: 2
+          visible: directoryStrategy.value === "fixed"
+          label: "Fixed path"
+          TextField {
+            id: directoryField
+            width: parent.width
+            foreground: Color.popups.text
+            font.family: Style.font.menuFamily
+            placeholderText: "/absolute/project/path"
+          }
+        }
+
+        FormField {
+          Layout.fillWidth: true
+          Layout.columnSpan: 2
+          label: "Allowed context"
+          TextField {
+            id: contextField
+            width: parent.width
+            foreground: Color.popups.text
+            font.family: Style.font.menuFamily
+            placeholderText: "window, screen, app, selection"
+          }
+        }
       }
-      TextField {
-        id: directoryField
-        Layout.fillWidth: true
-        visible: directoryStrategy.value === "fixed"
-        foreground: Color.menu.text
-        font.family: Style.font.menuFamily
-        placeholderText: "Fixed working directory"
-      }
-      TextField {
-        id: contextField
-        Layout.fillWidth: true
-        foreground: Color.menu.text
-        font.family: Style.font.menuFamily
-        placeholderText: "Allowed context (comma separated)"
-      }
-      Dropdown {
-        id: permissionPicker
-        Layout.fillWidth: true
-        showLabel: false
-        foreground: Color.menu.text
-        fontFamily: Style.font.menuFamily
-        options: ["read-only", "ask"]
-        value: "read-only"
-      }
-      TextField {
-        id: shortcutField
-        Layout.fillWidth: true
-        foreground: Color.menu.text
-        font.family: Style.font.menuFamily
-        placeholderText: "SUPER ALT, SPACE"
-      }
-      Text {
+
+      BorderSurface {
         Layout.fillWidth: true
         visible: root.shortcutError.length > 0
-        text: root.shortcutError
-        color: Color.urgent
-        font.family: Style.font.menuFamily
-        textFormat: Text.PlainText
-        wrapMode: Text.Wrap
-        font.pixelSize: Style.font.caption
+        implicitHeight: shortcutErrorText.implicitHeight + Style.spacing.xl * 2
+        color: Util.alpha(Color.urgent, 0.10)
+        borderSpec: Border.flat(Util.alpha(Color.urgent, 0.35), Style.normalBorderWidth)
+        radius: Style.cornerRadius
+
+        Text {
+          id: shortcutErrorText
+          anchors.left: parent.left
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+          anchors.leftMargin: Style.space(12)
+          anchors.rightMargin: Style.space(12)
+          text: root.shortcutError
+          color: Color.popups.text
+          font.family: Style.font.menuFamily
+          font.pixelSize: Style.font.caption
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+        }
       }
 
-      Toggle {
-        id: profileUnlimited
+      PanelSeparator {
         Layout.fillWidth: true
-        label: "Use global history limit"
-        foreground: Color.menu.text
-        fontFamily: Style.font.menuFamily
-        onClicked: checked = !checked
-      }
-      TextField {
-        id: profileRetention
-        Layout.fillWidth: true
-        enabled: !profileUnlimited.checked
-        foreground: Color.menu.text
-        font.family: Style.font.menuFamily
-        placeholderText: "Profile history limit"
-        validator: IntValidator { bottom: 1 }
-      }
-      Toggle {
-        id: privateDefault
-        Layout.fillWidth: true
-        label: "Private by default"
-        foreground: Color.menu.text
-        fontFamily: Style.font.menuFamily
-        onClicked: checked = !checked
-      }
-      ThemedTextArea {
-        id: advancedField
-        Layout.fillWidth: true
-        Layout.preferredHeight: Style.space(70)
-        placeholderText: "Advanced arguments, one per line"
+        foreground: Color.popups.text
       }
 
-      Toggle {
-        id: globalUnlimited
-        Layout.fillWidth: true
-        label: "Unlimited global history"
-        foreground: Color.menu.text
+      PanelSectionHeader {
+        text: "PRIVACY & HISTORY"
+        foreground: Color.popups.text
         fontFamily: Style.font.menuFamily
-        checked: root.profileState && root.profileState.historyLimit === null
-        onClicked: root.historyLimitChanged(checked ? 20 : null)
       }
 
-      RowLayout {
+      GridLayout {
         Layout.fillWidth: true
-        Button {
+        columns: 2
+        columnSpacing: Style.spacing.controlGap
+        rowSpacing: Style.spacing.controlGap
+
+        Toggle {
+          id: privateDefault
           Layout.fillWidth: true
-          text: "Save"
-          enabled: Boolean(root.activeProfile) && nameField.text.trim().length > 0
-          foreground: Color.menu.text
+          label: "Private by default"
+          description: "Do not write Quick Chat history"
+          foreground: Color.popups.text
           fontFamily: Style.font.menuFamily
-          bordered: true
-          onClicked: root.profilePatchRequested(root.values())
+          onClicked: checked = !checked
         }
-        Button {
-          text: "Duplicate"
-          foreground: Color.menu.text
+
+        Toggle {
+          id: profileUnlimited
+          Layout.fillWidth: true
+          label: "Use global retention"
+          description: "Ignore a profile-specific limit"
+          foreground: Color.popups.text
           fontFamily: Style.font.menuFamily
-          onClicked: root.duplicateRequested()
+          onClicked: checked = !checked
         }
-        Button {
-          text: "Remove"
-          foreground: Color.urgent
+
+        FormField {
+          Layout.fillWidth: true
+          label: "Profile history limit"
+          TextField {
+            id: profileRetention
+            width: parent.width
+            enabled: !profileUnlimited.checked
+            foreground: Color.popups.text
+            font.family: Style.font.menuFamily
+            placeholderText: "20"
+            validator: IntValidator { bottom: 1 }
+          }
+        }
+
+        Toggle {
+          id: globalUnlimited
+          Layout.fillWidth: true
+          label: "Unlimited global history"
+          description: "Keep conversations until cleared"
+          foreground: Color.popups.text
           fontFamily: Style.font.menuFamily
-          onClicked: removeDialog.opened = true
+          checked: Boolean(root.profileState && root.profileState.historyLimit === null)
+          onClicked: root.historyLimitChanged(checked ? 20 : null)
         }
+      }
+
+      PanelSeparator {
+        Layout.fillWidth: true
+        visible: adapterPicker.value === "custom"
+        foreground: Color.popups.text
+      }
+
+      PanelSectionHeader {
+        visible: adapterPicker.value === "custom"
+        text: "CUSTOM COMMAND"
+        foreground: Color.popups.text
+        fontFamily: Style.font.menuFamily
+      }
+
+      GridLayout {
+        Layout.fillWidth: true
+        visible: adapterPicker.value === "custom"
+        columns: 2
+        columnSpacing: Style.spacing.controlGap
+        rowSpacing: Style.spacing.controlGap
+
+        FormField {
+          Layout.fillWidth: true
+          label: "Executable"
+          TextField {
+            id: customExecutable
+            width: parent.width
+            foreground: Color.popups.text
+            font.family: Style.font.menuFamily
+            placeholderText: "Executable"
+          }
+        }
+
+        FormField {
+          Layout.fillWidth: true
+          label: "Output"
+          Dropdown {
+            id: customOutput
+            width: parent.width
+            showLabel: false
+            foreground: Color.popups.text
+            fontFamily: Style.font.menuFamily
+            options: ["plain", "jsonl"]
+            value: "plain"
+          }
+        }
+
+        FormField {
+          Layout.fillWidth: true
+          label: "Arguments"
+          ThemedTextArea {
+            id: customArguments
+            width: parent.width
+            height: Style.space(76)
+            placeholderText: "One argument per line"
+          }
+        }
+
+        FormField {
+          Layout.fillWidth: true
+          label: "Read-only arguments"
+          ThemedTextArea {
+            id: customReadOnly
+            width: parent.width
+            height: Style.space(76)
+            placeholderText: "One argument per line"
+          }
+        }
+
+        Toggle {
+          id: customStdin
+          Layout.fillWidth: true
+          Layout.columnSpan: 2
+          label: "Send prompt on stdin"
+          description: "Avoid prompt interpolation in argv"
+          foreground: Color.popups.text
+          fontFamily: Style.font.menuFamily
+          onClicked: checked = !checked
+        }
+      }
+
+      PanelSeparator {
+        Layout.fillWidth: true
+        foreground: Color.popups.text
+      }
+
+      FormField {
+        Layout.fillWidth: true
+        label: "Advanced arguments"
+        ThemedTextArea {
+          id: advancedField
+          width: parent.width
+          height: Style.space(76)
+          placeholderText: "One argument per line"
+        }
+      }
+
+      Button {
+        Layout.alignment: Qt.AlignRight
+        text: "Save profile"
+        iconText: "󰆓"
+        enabled: Boolean(root.activeProfile) && nameField.text.trim().length > 0
+        foreground: Color.popups.text
+        fontFamily: Style.font.menuFamily
+        bordered: true
+        onClicked: root.profilePatchRequested(root.values())
       }
     }
   }
@@ -317,11 +515,11 @@ BorderSurface {
     anchors.fill: parent
     message: "Remove this profile? Existing history remains readable."
     confirmText: "Remove"
-    background: Color.menu.background
-    foreground: Color.menu.text
-    scrim: Util.alpha(Color.menu.background, 0.72)
-    selectedBackground: Color.menu.selectedBackground
-    selectedText: Color.menu.selectedText
+    background: Color.popups.background
+    foreground: Color.popups.text
+    scrim: Util.alpha(Color.popups.background, 0.72)
+    selectedBackground: Style.selectedFillFor(Color.popups.text, Color.accent)
+    selectedText: Style.selectedStateColor(Color.popups.text, Color.accent)
     fontFamily: Style.font.menuFamily
     onCanceled: opened = false
     onConfirmed: {

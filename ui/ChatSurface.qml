@@ -27,7 +27,7 @@ Item {
   property string pendingPrompt: ""
   property var pendingApproval: null
   property string pendingClipboard: ""
-  property bool historyOpen: false
+  property string activePage: "chat"
   property string profilesRequestId: ""
   property string historyRequestId: ""
   property string historyGetRequestId: ""
@@ -35,7 +35,23 @@ Item {
   property string profileSaveRequestId: ""
 
   signal expandRequested()
-  signal historyRequested()
+
+  function openPage(page) {
+    activePage = page
+    if (!expanded) expandRequested()
+    Qt.callLater(focusActivePage)
+  }
+
+  function focusActivePage() {
+    if (activePage === "history") historyPage.focusPage()
+    else if (activePage === "profiles") profilePage.focusPage()
+    else composer.focusInput()
+  }
+
+  function toggleExpanded() {
+    if (expanded) activePage = "chat"
+    expandRequested()
+  }
 
   function newRequestId() {
     return "request-" + Date.now() + "-" + Math.floor(Math.random() * 1000000)
@@ -75,7 +91,8 @@ Item {
   function newConversation() {
     conversationId = "conversation-" + Date.now()
     chatState = ChatModel.initialState(conversationId, profileId)
-    historyOpen = false
+    activePage = "chat"
+    Qt.callLater(focusActivePage)
   }
 
   function saveProfiles(nextState) {
@@ -123,6 +140,10 @@ Item {
     } else if (name === "error") {
       chatState = ChatModel.withFailedRun("Explain this", "timeout")
     }
+    activePage = name === "settings" ? "profiles"
+      : name === "history" ? "history"
+      : "chat"
+    Qt.callLater(focusActivePage)
   }
 
   function sendPrompt(prompt) {
@@ -212,7 +233,7 @@ Item {
 
   function handleRecovery(code, data) {
     if (code === "not_installed" || code === "invalid_working_directory") {
-      if (!expanded) expandRequested()
+      openPage("profiles")
     } else if (code === "authentication_required") {
       copyText((data.loginCommand || []).join(" "))
     } else if (code === "unsupported_version") {
@@ -248,8 +269,16 @@ Item {
   }
 
   function focusComposer() {
-    composer.focusInput()
+    activePage = "chat"
+    Qt.callLater(focusActivePage)
   }
+
+  onExpandedChanged: {
+    if (!expanded) activePage = "chat"
+    Qt.callLater(focusActivePage)
+  }
+
+  onActivePageChanged: Qt.callLater(focusActivePage)
 
   BridgeClient {
     id: bridge
@@ -267,7 +296,8 @@ Item {
         root.chatState = ChatModel.loadConversation(root.chatState, event.data.conversation)
         root.conversationId = root.chatState.conversationId
         root.profileId = root.chatState.profileId
-        root.historyOpen = false
+        root.activePage = "chat"
+        Qt.callLater(root.focusActivePage)
       } else if (event.type === "complete" && event.requestId === root.clearRequestId) {
         root.historyItems = []
         root.newConversation()
@@ -302,105 +332,156 @@ Item {
     }
   }
 
-  RowLayout {
+  ColumnLayout {
     anchors.fill: parent
-    spacing: Style.spacing.controlGap
+    spacing: Style.space(12)
 
-    HistoryDrawer {
-      Layout.preferredWidth: Style.space(240)
-      Layout.fillHeight: true
-      visible: root.expanded || root.historyOpen
-      conversations: root.historyItems
+    ChatHeader {
+      Layout.fillWidth: true
+      profileId: root.profileId
       profiles: root.profileState ? root.profileState.profiles : []
-      onConversationSelected: function(identifier) { root.loadConversation(identifier) }
-      onClearRequested: clearDialog.opened = true
-      onNewChatRequested: root.newConversation()
+      cliState: bridge.ready ? root.chatState.status : "Starting bridge"
+      privateMode: root.privateMode
+      expanded: root.expanded
+      activePage: root.activePage
+      onProfileSelected: function(value) { root.selectProfile(value) }
+      onPrivateChanged: function(value) { root.privateMode = value }
+      onExpandRequested: root.toggleExpanded()
+      onHistoryRequested: root.openPage("history")
+      onSettingsRequested: root.openPage("profiles")
     }
 
-    ColumnLayout {
+    PanelSeparator {
+      Layout.fillWidth: true
+      foreground: Color.popups.text
+    }
+
+    RowLayout {
+      Layout.fillWidth: true
+      visible: root.expanded
+      spacing: Style.spacing.sm
+
+      Button {
+        Layout.fillWidth: true
+        text: "Chat"
+        iconText: "󰭻"
+        selected: root.activePage === "chat"
+        foreground: Color.popups.text
+        fontFamily: Style.font.menuFamily
+        onClicked: root.openPage("chat")
+      }
+
+      Button {
+        Layout.fillWidth: true
+        text: "History"
+        iconText: "󰋚"
+        selected: root.activePage === "history"
+        foreground: Color.popups.text
+        fontFamily: Style.font.menuFamily
+        onClicked: root.openPage("history")
+      }
+
+      Button {
+        Layout.fillWidth: true
+        text: "Profiles"
+        iconText: ""
+        selected: root.activePage === "profiles"
+        foreground: Color.popups.text
+        fontFamily: Style.font.menuFamily
+        onClicked: root.openPage("profiles")
+      }
+    }
+
+    StackLayout {
       Layout.fillWidth: true
       Layout.fillHeight: true
-      spacing: Style.spacing.controlGap
+      currentIndex: root.activePage === "history" ? 1
+        : root.activePage === "profiles" ? 2
+        : 0
 
-      ChatHeader {
-        Layout.fillWidth: true
-        profileId: root.profileId
+      ColumnLayout {
+        spacing: Style.spacing.controlGap
+
+        MessageList {
+          Layout.fillWidth: true
+          Layout.fillHeight: true
+          messages: root.chatState.messages
+        }
+
+        AttachmentPreview {
+          Layout.fillWidth: true
+          visible: root.attachments.length > 0
+          attachments: root.attachments
+          onRemoveRequested: function(identifier) { root.removeAttachment(identifier) }
+          onOcrRequested: function(identifier) { root.requestOcr(identifier) }
+        }
+
+        InlineError {
+          Layout.fillWidth: true
+          error: root.chatState.error
+          onDismissed: root.chatState = ChatModel.clearError(root.chatState)
+          onRetryRequested: root.retry()
+          onActionRequested: function(code, data) { root.handleRecovery(code, data) }
+        }
+
+        ApprovalCard {
+          Layout.fillWidth: true
+          request: root.pendingApproval
+          adapterName: root.activeProfile() ? root.activeProfile().name : "Agent"
+          onApproveRequested: function(identifier) { root.answerApproval(identifier, true) }
+          onDenyRequested: function(identifier) { root.answerApproval(identifier, false) }
+        }
+
+        PanelSeparator {
+          Layout.fillWidth: true
+          foreground: Color.popups.text
+        }
+
+        Composer {
+          id: composer
+          Layout.fillWidth: true
+          running: root.chatState.running
+          attachmentCount: root.attachments.length
+          onSendRequested: function(prompt) { root.sendPrompt(prompt) }
+          onContextRequested: function(mode) { root.requestContext(mode) }
+          onStopRequested: bridge.send({
+            type: "cancel",
+            requestId: root.chatState.activeRequestId
+          })
+        }
+      }
+
+      HistoryDrawer {
+        id: historyPage
+        conversations: root.historyItems
         profiles: root.profileState ? root.profileState.profiles : []
-        cliState: bridge.ready ? root.chatState.status : "Starting bridge"
-        privateMode: root.privateMode
-        onProfileSelected: function(value) { root.selectProfile(value) }
-        onPrivateChanged: function(value) { root.privateMode = value }
-        onExpandRequested: root.expandRequested()
-        onHistoryRequested: root.historyOpen = !root.historyOpen
+        onConversationSelected: function(identifier) { root.loadConversation(identifier) }
+        onClearRequested: clearDialog.opened = true
+        onNewChatRequested: root.newConversation()
       }
 
-      MessageList {
-        Layout.fillWidth: true
-        Layout.fillHeight: true
-        messages: root.chatState.messages
-      }
-
-      AttachmentPreview {
-        Layout.fillWidth: true
-        visible: root.attachments.length > 0
-        attachments: root.attachments
-        onRemoveRequested: function(identifier) { root.removeAttachment(identifier) }
-        onOcrRequested: function(identifier) { root.requestOcr(identifier) }
-      }
-
-      InlineError {
-        Layout.fillWidth: true
-        error: root.chatState.error
-        onDismissed: root.chatState = ChatModel.clearError(root.chatState)
-        onRetryRequested: root.retry()
-        onActionRequested: function(code, data) { root.handleRecovery(code, data) }
-      }
-
-      ApprovalCard {
-        Layout.fillWidth: true
-        request: root.pendingApproval
-        adapterName: root.activeProfile() ? root.activeProfile().name : "Agent"
-        onApproveRequested: function(identifier) { root.answerApproval(identifier, true) }
-        onDenyRequested: function(identifier) { root.answerApproval(identifier, false) }
-      }
-
-      Composer {
-        id: composer
-        Layout.fillWidth: true
-        running: root.chatState.running
-        attachmentCount: root.attachments.length
-        onSendRequested: function(prompt) { root.sendPrompt(prompt) }
-        onContextRequested: function(mode) { root.requestContext(mode) }
-        onStopRequested: bridge.send({
-          type: "cancel",
-          requestId: root.chatState.activeRequestId
-        })
-      }
-    }
-
-    ProfileSettings {
-      Layout.preferredWidth: Style.space(230)
-      Layout.fillHeight: true
-      visible: root.expanded
-      profileState: root.profileState
-      activeProfile: root.activeProfile()
-      shortcutError: root.service ? root.service.lastError : ""
-      onHistoryLimitChanged: function(value) {
-        root.saveProfiles(ProfileModel.setHistoryLimit(root.profileState, value))
-      }
-      onProfilePatchRequested: function(values) {
-        root.saveProfiles(ProfileModel.update(root.profileState, {
-          profileId: root.profileId,
-          values: values
-        }))
-      }
-      onDuplicateRequested: root.saveProfiles(
-        ProfileModel.duplicate(root.profileState, root.profileId)
-      )
-      onRemoveRequested: {
-        var next = ProfileModel.remove(root.profileState, root.profileId, true)
-        root.profileId = next.selectedId
-        root.saveProfiles(next)
+      ProfileSettings {
+        id: profilePage
+        profileState: root.profileState
+        activeProfile: root.activeProfile()
+        shortcutError: root.service ? root.service.lastError : ""
+        onHistoryLimitChanged: function(value) {
+          root.saveProfiles(ProfileModel.setHistoryLimit(root.profileState, value))
+        }
+        onProfilePatchRequested: function(values) {
+          root.saveProfiles(ProfileModel.update(root.profileState, {
+            profileId: root.profileId,
+            values: values
+          }))
+        }
+        onDuplicateRequested: root.saveProfiles(
+          ProfileModel.duplicate(root.profileState, root.profileId)
+        )
+        onRemoveRequested: {
+          var next = ProfileModel.remove(root.profileState, root.profileId, true)
+          root.profileId = next.selectedId
+          root.saveProfiles(next)
+        }
       }
     }
   }
@@ -410,11 +491,11 @@ Item {
     anchors.fill: parent
     message: "Clear all Quick Chat history? CLI-owned sessions are not deleted."
     confirmText: "Clear"
-    background: Color.menu.background
-    foreground: Color.menu.text
-    scrim: Util.alpha(Color.menu.background, 0.72)
-    selectedBackground: Color.menu.selectedBackground
-    selectedText: Color.menu.selectedText
+    background: Color.popups.background
+    foreground: Color.popups.text
+    scrim: Util.alpha(Color.popups.background, 0.72)
+    selectedBackground: Style.selectedFillFor(Color.popups.text, Color.accent)
+    selectedText: Style.selectedStateColor(Color.popups.text, Color.accent)
     fontFamily: Style.font.menuFamily
     onCanceled: opened = false
     onConfirmed: {
@@ -434,11 +515,11 @@ Item {
     message: "This profile cannot receive images in process mode. Convert them to text or switch profile."
     cancelText: "Switch profile"
     confirmText: "Convert to text"
-    background: Color.menu.background
-    foreground: Color.menu.text
-    scrim: Util.alpha(Color.menu.background, 0.72)
-    selectedBackground: Color.menu.selectedBackground
-    selectedText: Color.menu.selectedText
+    background: Color.popups.background
+    foreground: Color.popups.text
+    scrim: Util.alpha(Color.popups.background, 0.72)
+    selectedBackground: Style.selectedFillFor(Color.popups.text, Color.accent)
+    selectedText: Style.selectedStateColor(Color.popups.text, Color.accent)
     fontFamily: Style.font.menuFamily
     onCanceled: {
       opened = false

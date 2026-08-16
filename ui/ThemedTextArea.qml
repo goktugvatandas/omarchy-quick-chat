@@ -6,7 +6,7 @@ import qs.Ui
 Controls.TextArea {
   id: root
 
-  property color foreground: Color.menu.text
+  property color foreground: Color.popups.text
   property color accent: Color.accent
   readonly property bool hot: activeFocus || hovered
   readonly property var controlBorder: Border.controlSpec(

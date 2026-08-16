@@ -19,10 +19,10 @@ ThemedScrollView {
       height: messageText.implicitHeight + Style.spacing.controlPaddingY * 2
       radius: Style.cornerRadius
       color: modelData.role === "user"
-        ? Color.menu.selectedBackground
+        ? Style.selectedFillFor(Color.popups.text, Color.accent)
         : "transparent"
       borderSpec: modelData.role === "user"
-        ? Border.controlSpec("selected", Color.menu.text, Color.accent)
+        ? Border.controlSpec("selected", Color.popups.text, Color.accent)
         : Border.none()
 
       TextEdit {
@@ -33,11 +33,11 @@ ThemedScrollView {
         textFormat: Text.PlainText
         wrapMode: TextEdit.Wrap
         readOnly: true
-        color: Color.menu.text
+        color: Color.popups.text
         font.family: Style.font.menuFamily
         font.pixelSize: Style.font.body
-        selectionColor: Style.selectionFillFor(Color.menu.text, Color.accent)
-        selectedTextColor: Color.menu.text
+        selectionColor: Style.selectionFillFor(Color.popups.text, Color.accent)
+        selectedTextColor: Color.popups.text
         selectByMouse: true
       }
     }

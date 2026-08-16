@@ -40,7 +40,7 @@ BorderSurface {
     Text {
       Layout.fillWidth: true
       text: root.adapterName + " requests approval"
-      color: Color.menu.text
+      color: Color.popups.text
       font.family: Style.font.menuFamily
       font.pixelSize: Style.font.subtitle
       font.bold: true
@@ -48,7 +48,7 @@ BorderSurface {
     Text {
       Layout.fillWidth: true
       text: root.request ? (root.request.title || root.request.operation || "Operation") : ""
-      color: Color.menu.text
+      color: Color.popups.text
       font.family: Style.font.menuFamily
       font.pixelSize: Style.font.body
       textFormat: Text.PlainText
@@ -58,7 +58,7 @@ BorderSurface {
       Layout.fillWidth: true
       visible: root.detailsExpanded
       text: root.request ? String(root.request.details || "") : ""
-      color: Color.menu.text
+      color: Color.popups.text
       font.family: Style.font.menuFamily
       font.pixelSize: Style.font.bodySmall
       textFormat: Text.PlainText
@@ -68,20 +68,20 @@ BorderSurface {
       Layout.fillWidth: true
       Button {
         text: root.detailsExpanded ? "Hide details" : "Details"
-        foreground: Color.menu.text
+        foreground: Color.popups.text
         fontFamily: Style.font.menuFamily
         onClicked: root.detailsExpanded = !root.detailsExpanded
       }
       Item { Layout.fillWidth: true }
       Button {
         text: "Deny"
-        foreground: Color.menu.text
+        foreground: Color.popups.text
         fontFamily: Style.font.menuFamily
         onClicked: root.deny()
       }
       Button {
         text: "Approve once"
-        foreground: Color.menu.text
+        foreground: Color.popups.text
         fontFamily: Style.font.menuFamily
         bordered: true
         onClicked: {

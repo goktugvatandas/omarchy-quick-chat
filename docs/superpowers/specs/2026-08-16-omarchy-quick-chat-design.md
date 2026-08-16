@@ -36,7 +36,7 @@ The plugin uses the CLIs' existing authentication and never stores credentials o
 ## Product Decisions
 
 - Distribution: standalone third-party git repository.
-- Surface: compact centered popup by default, expandable into a larger panel-style layout.
+- Surface: compact centered popup by default, expandable into a focused panel workspace with Chat, History, and Profiles pages.
 - Popup chrome: card-sized layer surface with outside-click dismissal and no full-screen scrim or input overlay.
 - Theme: consume Omarchy's live colors, fonts, type scale, spacing, borders, control states, and corner radius throughout.
 - Main menu: expose a root action; request placement immediately after Apps, with first-custom-row fallback until Omarchy supports relative extension ordering.
@@ -184,7 +184,11 @@ The compact popup contains:
 - Stop, Retry, Copy, New Chat, and Expand controls
 - Compact history picker
 
-The expanded layout keeps the same conversation and adds full history, profile settings, and additional room for long answers and code.
+The expanded layout keeps the same conversation and exposes Chat, History,
+and Profiles as focused full-width pages. It follows first-party Omarchy panel
+hierarchy—hero rows, separators, section headers, compact actions, and shared
+controls—and never displays history, chat, and settings as simultaneous
+desktop-style columns.
 
 `Esc` hides the surface without cancelling an active answer. Stop cancels the exact active child process. Reopening the popup returns to the active or most recent conversation.
 

@@ -20,8 +20,8 @@ Flow {
       width: Math.min(root.width, Style.space(230))
       height: Style.space(92)
       radius: Style.cornerRadius
-      color: Style.normalFillFor(Color.menu.text, Color.accent)
-      borderSpec: Border.controlSpec("normal", Color.menu.text, Color.accent)
+      color: Style.normalFillFor(Color.popups.text, Color.accent)
+      borderSpec: Border.controlSpec("normal", Color.popups.text, Color.accent)
 
       RowLayout {
         anchors.fill: parent
@@ -44,7 +44,7 @@ Flow {
           Text {
             Layout.fillWidth: true
             text: modelData.appName || (modelData.kind === "image" ? "Screenshot" : "Context")
-            color: Color.menu.text
+            color: Color.popups.text
             font.family: Style.font.menuFamily
             font.pixelSize: Style.font.body
             font.bold: true
@@ -55,7 +55,7 @@ Flow {
             Layout.fillWidth: true
             Layout.fillHeight: true
             text: modelData.windowTitle || modelData.text || ""
-            color: Util.alpha(Color.menu.text, 0.7)
+            color: Util.alpha(Color.popups.text, 0.7)
             font.family: Style.font.menuFamily
             font.pixelSize: Style.font.bodySmall
             textFormat: Text.PlainText
@@ -66,7 +66,7 @@ Flow {
 
           Text {
             text: String(modelData.size || 0) + " bytes"
-            color: Util.alpha(Color.menu.text, 0.5)
+            color: Util.alpha(Color.popups.text, 0.5)
             font.family: Style.font.menuFamily
             font.pixelSize: Style.font.caption
           }
@@ -76,13 +76,13 @@ Flow {
           Button {
             visible: modelData.kind === "image"
             text: "OCR"
-            foreground: Color.menu.text
+            foreground: Color.popups.text
             fontFamily: Style.font.menuFamily
             onClicked: root.ocrRequested(modelData.id)
           }
           Button {
             text: "Remove"
-            foreground: Color.menu.text
+            foreground: Color.popups.text
             fontFamily: Style.font.menuFamily
             onClicked: root.removeRequested(modelData.id)
           }

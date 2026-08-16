@@ -3,7 +3,8 @@
 Quick Chat is a third-party Omarchy shell plugin for fast Q&A through agent
 CLIs already installed and authenticated on your machine. It opens as a
 keyboard-first centered popup and expands into a larger history and profile
-workspace when needed.
+workspace when needed. The workspace keeps one focused page on screen at a
+time—Chat, History, or Profiles—instead of compressing them into sidebars.
 
 The built-in profiles are Codex, Claude Code, OpenCode, Grok, Cursor, and Pi.
 Custom shell-free command profiles are also supported.
@@ -31,8 +32,9 @@ commands.
 
 Press `SUPER+ALT+SPACE` to open the default Codex profile. `Ctrl+Enter` sends;
 plain Enter adds a line. Escape hides the popup without cancelling the active
-turn, so reopening restores it. Use Expand for history, retention, and profile
-settings. Each named profile can have its own Hyprland shortcut.
+turn, so reopening restores it. Use Expand to switch between the full-width
+Chat, History, and Profiles pages. Each named profile can have its own
+Hyprland shortcut.
 
 Quick Chat also adds a searchable **Quick Chat** action to the root Omarchy
 menu. The entry is merged idempotently into the user menu extension without

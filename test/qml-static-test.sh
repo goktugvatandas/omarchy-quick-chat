@@ -46,6 +46,15 @@ chat_surface = (root / "ui/ChatSurface.qml").read_text()
 assert 'import ".."' in chat_surface, (
     "chat surface must import root-level plugin components"
 )
+assert 'property string activePage: "chat"' in chat_surface, (
+    "expanded mode must use a focused page model"
+)
+assert "StackLayout {" in chat_surface, (
+    "expanded mode must show one workspace page at a time"
+)
+assert "historyOpen" not in chat_surface, (
+    "history must be a focused page, not a cramped side drawer"
+)
 
 message_list = (root / "ui/MessageList.qml").read_text()
 assert "TextEdit {" in message_list and "readOnly: true" in message_list, (
@@ -62,6 +71,7 @@ themed_consumers = [
     root / "ui/AttachmentPreview.qml",
     root / "ui/ChatHeader.qml",
     root / "ui/Composer.qml",
+    root / "ui/FormField.qml",
     root / "ui/HistoryDrawer.qml",
     root / "ui/InlineError.qml",
     root / "ui/MessageList.qml",
@@ -82,7 +92,7 @@ for name in ("ChatHeader.qml", "Composer.qml", "ProfileSettings.qml"):
 
 for component in ("ThemedTextArea.qml", "ThemedScrollView.qml"):
     source = (root / "ui" / component).read_text()
-    assert "Color.menu" in source and "Style." in source, (
+    assert "Color.popups" in source and "Style." in source, (
         f"{component} must bind to the live Omarchy theme"
     )
 
