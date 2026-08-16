@@ -353,6 +353,19 @@ class RemainingAdapterTests(unittest.TestCase):
                 self.assertEqual(run.call_args.args[0], argv)
 
     @patch("bridge.quick_chat.model_discovery.subprocess.run")
+    def test_extended_effort_ids_get_readable_labels(self, run):
+        run.return_value = Mock(
+            returncode=0,
+            stdout="--effort <level>  Effort level (choices: low, xhigh)\n",
+            stderr="",
+        )
+        options = ClaudeAdapter().effort_options(Path.home())
+        self.assertEqual(
+            [(option.id, option.label) for option in options],
+            [("low", "Low"), ("xhigh", "Extra High")],
+        )
+
+    @patch("bridge.quick_chat.model_discovery.subprocess.run")
     def test_catalog_efforts_come_only_from_explicit_variants_and_parameters(self, run):
         run.return_value = Mock(
             returncode=0,

@@ -10,8 +10,14 @@ Controls.ScrollView {
   clip: true
   contentWidth: availableWidth
 
+  // Replacing an attached scroll bar discards the default style's geometry
+  // bindings, so a custom bar must position itself or it renders at 0,0.
   Controls.ScrollBar.vertical: Controls.ScrollBar {
     id: verticalBar
+    parent: root
+    x: root.mirrored ? 0 : root.width - width
+    y: root.topPadding
+    height: root.availableHeight
     policy: root.verticalScrollBarEnabled
       ? Controls.ScrollBar.AsNeeded
       : Controls.ScrollBar.AlwaysOff
@@ -30,6 +36,10 @@ Controls.ScrollView {
 
   Controls.ScrollBar.horizontal: Controls.ScrollBar {
     id: horizontalBar
+    parent: root
+    x: root.leftPadding
+    y: root.height - height
+    width: root.availableWidth
     policy: Controls.ScrollBar.AlwaysOff
 
     contentItem: Rectangle {

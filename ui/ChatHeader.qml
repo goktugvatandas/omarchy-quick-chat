@@ -1,6 +1,7 @@
 import QtQuick
 import qs.Commons
 import qs.Ui
+import "../models/ChatModel.js" as ChatModel
 
 Item {
   id: root
@@ -74,7 +75,7 @@ Item {
 
     Text {
       width: parent.width
-      text: root.cliState.toUpperCase()
+      text: ChatModel.statusLabel(root.cliState).toUpperCase()
       color: Qt.darker(Color.popups.text, 1.4)
       font.family: Style.font.menuFamily
       font.pixelSize: Style.font.caption

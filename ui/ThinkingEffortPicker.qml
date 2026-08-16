@@ -161,7 +161,7 @@ Item {
       id: effortPopup
       x: 0
       y: -height - Style.spacing.xs
-      width: Math.max(trigger.width, Style.space(250))
+      width: Math.max(trigger.width, Style.space(340))
       implicitHeight: Math.min(
         Style.space(310),
         effortList.contentHeight + effortHelp.implicitHeight
@@ -247,7 +247,10 @@ Item {
             required property int index
 
             width: effortList.width
-            height: modelData.description ? Style.space(48) : Style.space(36)
+            height: Math.max(
+              Style.space(36),
+              effortRowContent.implicitHeight + Style.spacing.sm * 2
+            )
             hasCursor: index === effortList.currentIndex
             current: Boolean(modelData.selected)
             foreground: root.foreground
@@ -265,6 +268,7 @@ Item {
             }
 
             RowLayout {
+              id: effortRowContent
               anchors.fill: parent
               anchors.leftMargin: Style.spacing.controlPaddingX
               anchors.rightMargin: Style.spacing.controlPaddingX
@@ -304,6 +308,8 @@ Item {
                   color: Qt.darker(root.foreground, 1.45)
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.caption
+                  wrapMode: Text.WordWrap
+                  maximumLineCount: 2
                   elide: Text.ElideRight
                 }
               }

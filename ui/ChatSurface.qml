@@ -623,6 +623,7 @@ Item {
           Layout.fillWidth: true
           Layout.fillHeight: true
           messages: root.chatState.messages
+          agentShortcut: root.shortcutHint("model")
         }
 
         AttachmentPreview {

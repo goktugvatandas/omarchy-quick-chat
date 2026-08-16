@@ -259,6 +259,12 @@ assert "Qt.Key_Right" in harness_picker and "Qt.Key_Left" in harness_picker, (
 )
 
 effort_picker = (root / "ui/ThinkingEffortPicker.qml").read_text()
+assert "wrapMode: Text.WordWrap" in effort_picker, (
+    "effort descriptions must wrap instead of truncating mid-sentence"
+)
+assert "Style.space(340)" in effort_picker, (
+    "the effort popup must be wide enough for its descriptions"
+)
 assert "QQC.Popup {" in effort_picker and "modal: false" in effort_picker, (
     "the effort picker must use a non-modal anchored popup"
 )
@@ -285,6 +291,29 @@ assert "TextEdit {" in message_list and "readOnly: true" in message_list, (
 )
 assert "verticalScrollBarEnabled: messages.length > 0" in message_list, (
     "an empty transcript must not render a meaningless scrollbar"
+)
+assert '"Ask anything"' in message_list, (
+    "an empty conversation must greet the user instead of showing a void"
+)
+assert "root.agentShortcut" in message_list, (
+    "the empty state must surface the configured agent/model shortcut"
+)
+assert "messageRow.width - width : 0" in message_list, (
+    "user bubbles must right-align and size to content"
+)
+assert "measure.implicitWidth" in message_list, (
+    "user bubbles must hug their content instead of spanning full width"
+)
+assert 'agentShortcut: root.shortcutHint("model")' in chat_surface, (
+    "the empty-state hint must reflect the configured shortcut"
+)
+
+chat_header_status = (root / "ui/ChatHeader.qml").read_text()
+assert "ChatModel.statusLabel" in chat_header_status, (
+    "the header must translate protocol statuses into people words"
+)
+assert "root.cliState.toUpperCase()" not in chat_header_status, (
+    "raw engine statuses must not be rendered directly"
 )
 
 attachment_preview = (root / "ui/AttachmentPreview.qml").read_text()
@@ -329,6 +358,9 @@ for component in ("ThemedTextArea.qml", "ThemedScrollView.qml"):
 scroll_view = (root / "ui/ThemedScrollView.qml").read_text()
 assert "Controls.ScrollBar.AlwaysOff" in scroll_view, (
     "panel scroll views must not expose a meaningless horizontal scrollbar"
+)
+assert "root.width - width" in scroll_view and "parent: root" in scroll_view, (
+    "replaced attached scroll bars must restore the default geometry bindings"
 )
 
 profile_settings = (root / "ui/ProfileSettings.qml").read_text()
@@ -393,6 +425,12 @@ for literal in ("Ctrl+L", "Ctrl+K", "Ctrl+.", "Ctrl+H", "Ctrl+,", "Ctrl+Shift+P"
     assert literal in shortcut_editor, f"settings must present the {literal} default"
 
 history_drawer = (root / "ui/HistoryDrawer.qml").read_text()
+assert "TimeModel.relativeLabel" in history_drawer, (
+    "history rows must show human-readable times, not raw ISO timestamps"
+)
+assert "modelData.updatedAt || " not in history_drawer, (
+    "raw updatedAt strings must never be rendered directly"
+)
 for key in ("Qt.Key_Home", "Qt.Key_End", "Qt.Key_Space", "Qt.Key_Return"):
     assert key in history_drawer, f"history is missing {key} keyboard behavior"
 assert "event.text === \"n\"" not in history_drawer, (

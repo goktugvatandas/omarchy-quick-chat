@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Commons
 import qs.Ui
+import "../models/TimeModel.js" as TimeModel
 
 FocusScope {
   id: root
@@ -178,7 +179,7 @@ FocusScope {
               Text {
                 width: parent.width
                 text: root.profileName(conversationRow.modelData.profileId)
-                  + " · " + (conversationRow.modelData.updatedAt || "")
+                  + " · " + TimeModel.relativeLabel(conversationRow.modelData.updatedAt)
                 color: Qt.darker(Color.popups.text, 1.4)
                 font.family: Style.font.menuFamily
                 font.pixelSize: Style.font.bodySmall

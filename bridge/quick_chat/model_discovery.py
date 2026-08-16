@@ -184,7 +184,18 @@ def _dedupe(models: Iterable[ModelOption]) -> tuple[ModelOption, ...]:
     return tuple(result)
 
 
+# Harnesses advertise compact ids like "xhigh"; title-casing those raw ids
+# produces awkward labels ("Xhigh"), so known extended levels get real names.
+_EFFORT_LABEL_OVERRIDES = {
+    "xhigh": "Extra High",
+    "xlow": "Extra Low",
+}
+
+
 def _effort_label(identifier: str) -> str:
+    override = _EFFORT_LABEL_OVERRIDES.get(identifier.lower())
+    if override:
+        return override
     return identifier.replace("-", " ").replace("_", " ").title()
 
 
@@ -535,7 +546,7 @@ def discover_codex_models(cwd: Path | None = None) -> tuple[ModelOption, ...]:
                 try:
                     efforts.append(EffortOption(
                         effort_id,
-                        effort_id.capitalize() if isinstance(effort_id, str) else "",
+                        _effort_label(effort_id) if isinstance(effort_id, str) else "",
                         effort_description if isinstance(effort_description, str) else "",
                     ))
                 except ValueError:

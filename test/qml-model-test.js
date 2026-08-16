@@ -3,6 +3,7 @@ const ChatModel = require("../models/ChatModel.js")
 const ProfileModel = require("../models/ProfileModel.js")
 const HarnessPickerModel = require("../models/HarnessPickerModel.js")
 const EffortModel = require("../models/EffortModel.js")
+const TimeModel = require("../models/TimeModel.js")
 
 const state = ChatModel.initialState("conv-1", "codex")
 const started = ChatModel.beginRun(state, "req-1", "Say hello", [], false)
@@ -229,6 +230,29 @@ assert.deepEqual(
   []
 )
 assert.deepEqual(EffortModel.reconcile(null, []), { value: null, reset: false })
+
+assert.equal(ChatModel.statusLabel("idle"), "Ready")
+assert.equal(ChatModel.statusLabel("complete"), "Ready")
+assert.equal(ChatModel.statusLabel("starting"), "Starting…")
+assert.equal(ChatModel.statusLabel("working"), "Thinking…")
+assert.equal(ChatModel.statusLabel("canceled"), "Stopped")
+assert.equal(ChatModel.statusLabel("error"), "Error")
+assert.equal(ChatModel.statusLabel("Starting bridge"), "Starting bridge")
+assert.equal(ChatModel.statusLabel(""), "")
+
+const now = Date.parse("2026-08-16T15:30:00+00:00")
+assert.equal(TimeModel.relativeLabel("", now), "")
+assert.equal(TimeModel.relativeLabel("not a date", now), "")
+assert.equal(TimeModel.relativeLabel("2026-08-16T15:29:40+00:00", now), "Just now")
+assert.equal(TimeModel.relativeLabel("2026-08-16T15:05:00+00:00", now), "25m ago")
+assert.equal(TimeModel.relativeLabel("2026-08-16T10:20:07.299629+00:00", now), "5h ago")
+assert.equal(TimeModel.relativeLabel("2026-08-15T09:00:00+00:00", now), "Yesterday")
+assert.equal(TimeModel.relativeLabel("2026-08-13T09:00:00+00:00", now), "3d ago")
+assert.equal(TimeModel.relativeLabel("2026-08-16T18:00:00+00:00", now), "Just now")
+const oldSameYear = TimeModel.relativeLabel("2026-01-05T09:00:00+00:00", now)
+assert.ok(/^Jan \d+$/.test(oldSameYear), oldSameYear)
+const oldOtherYear = TimeModel.relativeLabel("2025-12-31T09:00:00+00:00", now)
+assert.ok(/^Dec \d+, 2025$/.test(oldOtherYear), oldOtherYear)
 
 const loaded = ChatModel.loadConversation(ChatModel.initialState("new", "codex"), {
   id: "saved",

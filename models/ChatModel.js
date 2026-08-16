@@ -1,3 +1,21 @@
+// Raw engine statuses are protocol vocabulary; the header shows people words.
+// Unknown statuses (bridge-provided progress strings) pass through untouched.
+var STATUS_LABELS = {
+  "idle": "Ready",
+  "complete": "Ready",
+  "starting": "Starting…",
+  "working": "Thinking…",
+  "running": "Thinking…",
+  "canceled": "Stopped",
+  "cancelled": "Stopped",
+  "error": "Error"
+}
+
+function statusLabel(status) {
+  var key = String(status || "").toLowerCase()
+  return STATUS_LABELS[key] || String(status || "")
+}
+
 function initialState(conversationId, profileId) {
   return {
     conversationId: conversationId,
@@ -127,6 +145,7 @@ function withFailedRun(prompt, code) {
 
 if (typeof module !== "undefined") {
   module.exports = {
+    statusLabel: statusLabel,
     initialState: initialState,
     beginRun: beginRun,
     reduce: reduce,
