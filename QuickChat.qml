@@ -203,6 +203,7 @@ Item {
   FloatingWindow {
     id: window
     title: "Quick Chat"
+    visible: false
     color: Color.popups.background
     implicitWidth: Style.space(620)
     implicitHeight: Style.space(620)

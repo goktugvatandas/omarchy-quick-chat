@@ -63,6 +63,9 @@ assert not re.search(
     flags=re.DOTALL,
 ), "Quick Chat must not create a full-height click-blocking layer"
 assert "FloatingWindow {" in menu, "Quick Chat must use a standard desktop window"
+assert re.search(r"FloatingWindow\s*\{[^}]*\bvisible:\s*false", menu), (
+    "Quick Chat must stay unmapped until the shell explicitly summons it"
+)
 assert "PanelWindow {" not in menu, "Quick Chat must not remain a layer-shell panel"
 assert "Quickshell.Wayland" not in menu
 assert "WlrLayershell" not in menu
