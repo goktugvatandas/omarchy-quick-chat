@@ -76,10 +76,18 @@ assert 'title: "Quick Chat"' in menu
 assert "implicitWidth: Style.space(620)" in menu
 assert "implicitHeight: Style.space(620)" in menu
 assert "minimumSize: Qt.size(" in menu
-assert 'Hyprland.dispatch("setfloating address:"' in menu
-assert 'Hyprland.dispatch("resizewindowpixel exact 620 620,address:"' in menu
-assert 'Hyprland.dispatch("centerwindow 1,address:"' in menu
-assert 'Hyprland.dispatch("fullscreenstate "' in menu
+assert "Hyprland.usingLua ? luaRequest : legacyRequest" in menu
+assert 'hl.dsp.window.float({ action = "set", window = "' in menu
+assert 'hl.dsp.window.resize({ x = 620, y = 620, window = "' in menu
+assert 'hl.dsp.window.center({ window = "' in menu
+assert 'hl.dsp.window.fullscreen({ mode = "maximized", action = "' in menu
+assert '"setfloating " + selector' in menu
+assert '"resizewindowpixel exact 620 620," + selector' in menu
+assert '"centerwindow 1," + selector' in menu
+assert '"fullscreenstate " + legacyState + "," + selector' in menu
+assert "function normalizedWindowAddress(address)" in menu
+assert 'return raw.indexOf("0x") === 0 ? raw : "0x" + raw' in menu
+assert "function windowSelector(address)" in menu
 assert "window.startSystemMove()" in menu
 assert "quickToplevel.wayland.activate()" in menu
 assert "Number(quickToplevel.lastIpcObject.fullscreen) === 1" in menu
@@ -316,6 +324,7 @@ assert "thinkingEffort: effortPicker.value" in profile_settings, (
     "profile settings must serialize the selected thinking effort"
 )
 assert "ShortcutEditor {" in profile_settings
+assert "id: shortcutEditor" in profile_settings
 assert "signal uiShortcutsChanged(var shortcuts)" in profile_settings
 assert "function ensureFocusedItemVisible" in profile_settings
 assert "shortcutCaptureActive: shortcutEditor.captureActive" in profile_settings

@@ -90,14 +90,39 @@ Item {
     return fallback
   }
 
+  function normalizedWindowAddress(address) {
+    var raw = String(address || "").trim()
+    if (!/^(0x)?[0-9a-fA-F]+$/.test(raw)) return ""
+    return raw.indexOf("0x") === 0 ? raw : "0x" + raw
+  }
+
+  function windowSelector(address) {
+    var normalized = normalizedWindowAddress(address)
+    return normalized ? "address:" + normalized : ""
+  }
+
+  function dispatchWindow(legacyRequest, luaRequest) {
+    if (!legacyRequest || !luaRequest) return
+    Hyprland.dispatch(Hyprland.usingLua ? luaRequest : legacyRequest)
+  }
+
   function placeCurrentGeneration() {
     if (!quickToplevel || placedGeneration === openingGeneration) return
-    var target = String(quickToplevel.address || "")
-    if (!target) return
+    var selector = windowSelector(quickToplevel.address)
+    if (!selector) return
     placedGeneration = openingGeneration
-    Hyprland.dispatch("setfloating address:" + target)
-    Hyprland.dispatch("resizewindowpixel exact 620 620,address:" + target)
-    Hyprland.dispatch("centerwindow 1,address:" + target)
+    dispatchWindow(
+      "setfloating " + selector,
+      'hl.dsp.window.float({ action = "set", window = "' + selector + '" })'
+    )
+    dispatchWindow(
+      "resizewindowpixel exact 620 620," + selector,
+      'hl.dsp.window.resize({ x = 620, y = 620, window = "' + selector + '" })'
+    )
+    dispatchWindow(
+      "centerwindow 1," + selector,
+      'hl.dsp.window.center({ window = "' + selector + '" })'
+    )
   }
 
   function finishPendingFocus() {
@@ -133,9 +158,15 @@ Item {
   function toggleMaximized() {
     if (!quickToplevel) quickToplevel = findQuickChatToplevel()
     if (!quickToplevel || !quickToplevel.address) return
-    var target = quickToplevel.address
-    var next = isMaximized ? "0 0," : "1 1,"
-    Hyprland.dispatch("fullscreenstate " + next + "address:" + target)
+    var selector = windowSelector(quickToplevel.address)
+    if (!selector) return
+    var action = isMaximized ? "unset" : "set"
+    var legacyState = isMaximized ? "0 0" : "1 1"
+    dispatchWindow(
+      "fullscreenstate " + legacyState + "," + selector,
+      'hl.dsp.window.fullscreen({ mode = "maximized", action = "'
+        + action + '", window = "' + selector + '" })'
+    )
   }
 
   Connections {

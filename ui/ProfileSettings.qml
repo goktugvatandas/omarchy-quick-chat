@@ -550,6 +550,7 @@ FocusScope {
       }
 
       ShortcutEditor {
+        id: shortcutEditor
         Layout.fillWidth: true
         profileState: root.profileState
         shortcuts: root.profileState ? root.profileState.uiShortcuts : ({})
