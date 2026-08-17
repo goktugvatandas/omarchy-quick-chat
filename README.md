@@ -106,6 +106,10 @@ tools:
 - `cursor-agent`
 - `pi`
 
+The plugin itself additionally needs `python3` ≥ 3.9 and `jq` on `PATH`
+(the menu entry's `when` guard evaluates `~/.config/omarchy/shell.json` with
+`jq`; without it the menu entry is silently hidden).
+
 Cursor requires each working directory to be trusted once in its native CLI.
 Quick Chat deliberately never passes `--trust`, `--force`, or `--yolo`; either
 trust the profile directory interactively or configure a dedicated trusted

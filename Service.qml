@@ -12,6 +12,7 @@ Item {
   property var pluginRegistry: null
   property string lastError: ""
   property bool shortcutSyncPending: false
+  property bool menuInstallPending: false
   property var profiles: [
     { id: "codex", name: "Codex", shortcut: "SUPER ALT, C" },
     { id: "claude", name: "Claude Code", shortcut: null },
@@ -27,11 +28,22 @@ Item {
     ? manifest.__sourceDir + "/bridge/quick-chat-bridge"
     : ""
 
+  // Reload side-effects are debounced: the shell's plugin watcher (inotifywait -r
+  // over the plugins directory) emits one event per changed file, and Qt.callLater
+  // only coalesces to the next event-loop tick. A real Timer keeps a burst of
+  // watcher events from re-running shortcut-sync and menu-install per file.
   onBridgePathChanged: {
-    Qt.callLater(function() {
+    reloadCoalesce.restart()
+  }
+
+  Timer {
+    id: reloadCoalesce
+    interval: 300
+    repeat: false
+    onTriggered: {
       root.syncShortcuts()
       root.installMenuEntry()
-    })
+    }
   }
 
   function syncShortcuts() {
@@ -46,7 +58,12 @@ Item {
   }
 
   function installMenuEntry() {
-    if (!bridgePath || menuInstall.running) return
+    if (!bridgePath) return
+    if (menuInstall.running) {
+      menuInstallPending = true
+      return
+    }
+    menuInstallPending = false
     menuInstall.command = [bridgePath, "menu", "install"]
     menuInstall.running = true
   }
@@ -134,6 +151,10 @@ Item {
 
   Process {
     id: menuInstall
+    onRunningChanged: {
+      if (!running && root.menuInstallPending)
+        Qt.callLater(root.installMenuEntry)
+    }
     stdout: SplitParser {
       onRead: function(line) {
         try {
