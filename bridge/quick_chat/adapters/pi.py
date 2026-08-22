@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 import uuid
 from pathlib import Path
 
@@ -19,11 +20,15 @@ class PiAdapter(JsonProcessAdapter):
     id = "pi"
     executable = "pi"
     _capabilities = Capabilities(True, True, True, True, True, False, True)
+    session_file_limit = 4 * 1024 * 1024
+    session_total_limit = 32 * 1024 * 1024
+    session_count_limit = 24
 
     def __init__(self, state_dir: Path | None = None) -> None:
         super().__init__()
         self.state_dir = state_dir or PathSet.from_env().state_dir / "pi-sessions"
         self._private_session_path: Path | None = None
+        self._active_session_path: Path | None = None
 
     def discover_models(self, cwd: Path | None = None):
         return discover_command_models(("pi", "--list-models"), "pi", cwd)
@@ -65,6 +70,7 @@ class PiAdapter(JsonProcessAdapter):
         if context.thinking_effort:
             arguments.extend(("--thinking", context.thinking_effort))
         session_path = self._session_path(context.session_id, context.private)
+        self._active_session_path = session_path
         arguments.extend(("--session", str(session_path)))
         for attachment in context.attachments:
             if attachment.kind == "image" and attachment.path:
@@ -73,7 +79,67 @@ class PiAdapter(JsonProcessAdapter):
         if context.system_instructions:
             prompt = f"{context.system_instructions}\n\nUser question:\n{context.prompt}"
         arguments.append(prompt)
-        return Invocation(tuple(arguments), context.cwd, self.environment(), None)
+        wrapper = Path(__file__).resolve().parents[2] / "quick-chat-limited-exec"
+        return Invocation(
+            (sys.executable, str(wrapper), str(self.session_file_limit), *arguments),
+            context.cwd,
+            self.environment(),
+            None,
+            file_size_limit=self.session_file_limit,
+        )
+
+    def session_limit_exceeded(self) -> bool:
+        path = self._active_session_path
+        if path is None or path.is_symlink() or not path.is_file():
+            return False
+        try:
+            return path.stat().st_size >= self.session_file_limit
+        except OSError:
+            return False
+
+    def finalize_session(self) -> None:
+        path = self._active_session_path
+        self._active_session_path = None
+        if path is not None and path.is_file() and not path.is_symlink():
+            try:
+                if path.stat().st_size >= self.session_file_limit:
+                    path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+        if not self.state_dir.is_dir() or self.state_dir.is_symlink():
+            return
+        try:
+            sessions = [
+                candidate
+                for candidate in self.state_dir.glob("*.jsonl")
+                if candidate.is_file() and not candidate.is_symlink()
+            ]
+        except OSError:
+            return
+
+        def modified(candidate: Path) -> int:
+            try:
+                return candidate.stat().st_mtime_ns
+            except OSError:
+                return 0
+
+        sessions.sort(key=modified, reverse=True)
+        retained_bytes = 0
+        for index, candidate in enumerate(sessions):
+            try:
+                size = candidate.stat().st_size
+                keep = (
+                    index < self.session_count_limit
+                    and size < self.session_file_limit
+                    and retained_bytes + size <= self.session_total_limit
+                )
+                if keep:
+                    retained_bytes += size
+                else:
+                    candidate.unlink(missing_ok=True)
+            except OSError:
+                continue
 
     def cleanup_private_session(self) -> None:
         path = self._private_session_path

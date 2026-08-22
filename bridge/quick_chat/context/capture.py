@@ -3,20 +3,25 @@
 from __future__ import annotations
 
 import shutil
-import subprocess
 import uuid
 from pathlib import Path
 from typing import Callable
 
 from ..paths import PathSet
+from ..process_capture import CapturedProcess, run_bounded_checked
 from .base import AttachmentRecord
 
 
-Runner = Callable[..., subprocess.CompletedProcess[str]]
+Runner = Callable[..., CapturedProcess]
 
 
 def _default_runner(argv, **kwargs):
-    return subprocess.run(argv, **kwargs)
+    return run_bounded_checked(
+        tuple(argv),
+        timeout=kwargs.get("timeout", 15),
+        stdout_limit=4 * 1024,
+        stderr_limit=64 * 1024,
+    )
 
 
 class CaptureProvider:
@@ -34,11 +39,7 @@ class CaptureProvider:
         command = ["omarchy", "capture", "screenshot", mode, "save"]
         result = self.runner(
             command,
-            capture_output=True,
-            text=True,
             timeout=15,
-            check=False,
-            shell=False,
         )
         if result.returncode != 0:
             raise RuntimeError(result.stderr.strip() or "screen capture failed")

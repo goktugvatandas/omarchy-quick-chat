@@ -24,6 +24,12 @@ from .model_discovery import ModelDiscoveryError
 from .models import Config, Conversation, Message
 from .paths import PathSet
 from .protocol import Event, MAX_REQUEST_BYTES, ProtocolError, Request
+from .sanitize import (
+    RESPONSE_TEXT_LIMIT,
+    TRUNCATION_MARKER,
+    iter_bounded_records,
+    truncate_text,
+)
 from .storage import ConfigStore
 from .shortcuts import sync_shortcuts
 from .transports.process import ProcessTransport
@@ -179,6 +185,7 @@ def run(input_stream: TextIO, output_stream: TextIO) -> None:
         attachment_cleanup=context_manager.remove_many,
     )
     workers: dict[str, threading.Thread] = {}
+    workers_lock = threading.Lock()
     _write_event(
         output_stream,
         Event("ready", "bridge", {"protocolVersion": 1}),
@@ -186,12 +193,16 @@ def run(input_stream: TextIO, output_stream: TextIO) -> None:
     )
 
     def run_request(request: Request) -> None:
-        emitted: list[Event] = []
+        answer_chunks: list[str] = []
+        answer_chars = 0
+        answer_truncated = False
+        latest_session_id: str | None = None
+        saw_event = False
         persisted = False
 
         def persist_conversation() -> None:
             nonlocal persisted
-            if persisted or request.private or not emitted:
+            if persisted or request.private or not saw_event:
                 return
             history = HistoryStore(paths, engine.config)
             existing = next((
@@ -202,19 +213,17 @@ def run(input_stream: TextIO, output_stream: TextIO) -> None:
             now = datetime.now(UTC).isoformat()
             messages = list(existing.messages) if existing else []
             messages.append(Message("user", request.prompt or "", now))
-            answer = "".join(
-                str(event.data.get("text", ""))
-                for event in emitted
-                if event.type == "text_delta"
-            )
+            answer_source = "".join(answer_chunks)
+            if answer_truncated and TRUNCATION_MARKER not in answer_source:
+                answer_source += TRUNCATION_MARKER
+            answer = truncate_text(answer_source, RESPONSE_TEXT_LIMIT)
             if answer:
                 messages.append(Message("assistant", answer, now))
             sessions = dict(existing.cli_sessions) if existing else {}
-            for event in emitted:
-                if event.type == "session" and isinstance(event.data.get("sessionId"), str):
-                    profile = engine.config.profile(request.profile_id or "")
-                    if profile is not None:
-                        sessions[profile.adapter_id] = str(event.data["sessionId"])
+            if latest_session_id is not None:
+                profile = engine.config.profile(request.profile_id or "")
+                if profile is not None:
+                    sessions[profile.adapter_id] = latest_session_id
             history.upsert(Conversation(
                 id=request.conversation_id or request.request_id,
                 title=(existing.title if existing else (request.prompt or "New chat")[:80]),
@@ -228,7 +237,19 @@ def run(input_stream: TextIO, output_stream: TextIO) -> None:
 
         try:
             for event in engine.handle(request):
-                emitted.append(event)
+                saw_event = True
+                if event.type == "text_delta":
+                    text = str(event.data.get("text", ""))
+                    remaining = RESPONSE_TEXT_LIMIT - answer_chars
+                    if len(text) > remaining or TRUNCATION_MARKER in text:
+                        answer_truncated = True
+                    if remaining > 0:
+                        answer_chunks.append(text[:remaining])
+                        answer_chars += min(len(text), remaining)
+                elif event.type == "session":
+                    session_id = event.data.get("sessionId")
+                    if isinstance(session_id, str):
+                        latest_session_id = session_id
                 if event.type in {"complete", "error"}:
                     persist_conversation()
                 _write_event(output_stream, event, output_lock)
@@ -247,7 +268,8 @@ def run(input_stream: TextIO, output_stream: TextIO) -> None:
                 persist_conversation()
             except (OSError, ValueError):
                 pass
-            workers.pop(request.request_id, None)
+            with workers_lock:
+                workers.pop(request.request_id, None)
 
     def resolve_session(conversation_id: str, adapter_id: str) -> str | None:
         history = HistoryStore(paths, engine.config)
@@ -259,11 +281,11 @@ def run(input_stream: TextIO, output_stream: TextIO) -> None:
 
     engine.session_resolver = resolve_session
 
-    for line in input_stream:
+    for line, oversized in iter_bounded_records(input_stream, MAX_REQUEST_BYTES):
         request_id = "bridge"
         request: Request | None = None
         try:
-            if len(line.encode("utf-8")) > MAX_REQUEST_BYTES:
+            if oversized:
                 raise ProtocolError(
                     "request body exceeds 1 MiB",
                     "request_too_large",
@@ -273,6 +295,14 @@ def run(input_stream: TextIO, output_stream: TextIO) -> None:
                 request_id = decoded["requestId"] or "bridge"
             request = Request.from_dict(decoded)
             if request.type == "run":
+                with workers_lock:
+                    run_pending = bool(workers)
+                if run_pending:
+                    _write_event(output_stream, Event("error", request.request_id, {
+                        "code": "busy",
+                        "message": "Another Quick Chat request is already running.",
+                    }), output_lock)
+                    continue
                 paths.state_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
                 paths.state_dir.chmod(0o700)
                 config = ConfigStore(paths).load()
@@ -294,7 +324,8 @@ def run(input_stream: TextIO, output_stream: TextIO) -> None:
                             ),
                         ))
                 worker = threading.Thread(target=run_request, args=(request,), daemon=True)
-                workers[request.request_id] = worker
+                with workers_lock:
+                    workers[request.request_id] = worker
                 worker.start()
             elif request.type == "cancel":
                 cancelled = engine.cancel(request.request_id)

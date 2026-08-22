@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "goktugvatandas.quick-chat",
   "name": "Quick Chat",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "author": "Göktuğ Vatandaş",
   "license": "MIT",
   "description": "Quick Q&A through locally installed agent CLIs",

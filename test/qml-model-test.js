@@ -4,6 +4,7 @@ const ProfileModel = require("../models/ProfileModel.js")
 const HarnessPickerModel = require("../models/HarnessPickerModel.js")
 const EffortModel = require("../models/EffortModel.js")
 const TimeModel = require("../models/TimeModel.js")
+const TextBoundary = require("../models/TextBoundary.js")
 
 const state = ChatModel.initialState("conv-1", "codex")
 const started = ChatModel.beginRun(state, "req-1", "Say hello", [], false)
@@ -37,6 +38,16 @@ const retried = ChatModel.retryRun(failed, "req-2")
 assert.equal(retried.messages.filter(message => message.role === "user").length, 1)
 assert.equal(retried.messages[0].attempts.length, 2)
 assert.equal(ChatModel.clearError(failed).error, null)
+
+let boundedRetries = failed
+for (let index = 0; index < 20; index += 1) {
+  const requestId = "retry-" + index
+  boundedRetries = ChatModel.retryRun(boundedRetries, requestId)
+  boundedRetries = ChatModel.reduce(boundedRetries, {
+    type: "error", requestId: requestId, data: { message: "failed" }
+  })
+}
+assert.equal(boundedRetries.messages[0].attempts.length, 8)
 
 const profiles = ProfileModel.normalize({
   historyLimit: 20,
@@ -253,6 +264,58 @@ assert.equal(ChatModel.statusLabel("canceled"), "Stopped")
 assert.equal(ChatModel.statusLabel("error"), "Error")
 assert.equal(ChatModel.statusLabel("Starting bridge"), "Starting bridge")
 assert.equal(ChatModel.statusLabel(""), "")
+
+const qmlBounded = ChatModel.reduce(started, {
+  type: "text_delta", requestId: "req-1", data: { text: "x".repeat(512 * 1024) }
+})
+assert.ok(qmlBounded.messages.at(-1).text.length <= 256 * 1024)
+assert.match(qmlBounded.messages.at(-1).text, /truncated/i)
+
+const markerText = "prefix\n[Output truncated by Quick Chat.]"
+const markerState = ChatModel.reduce(started, {
+  type: "text_delta", requestId: "req-1", data: { text: markerText }
+})
+const markerContinued = ChatModel.reduce(markerState, {
+  type: "text_delta", requestId: "req-1", data: { text: " tail" }
+})
+assert.equal(markerContinued.messages.at(-1).text, markerText + " tail")
+
+let boundedConversation = ChatModel.initialState("bounded", "codex")
+for (let index = 0; index < 40; index += 1) {
+  const requestId = "bounded-" + index
+  boundedConversation = ChatModel.beginRun(
+    boundedConversation, requestId, "question " + index, [], false
+  )
+  boundedConversation = ChatModel.reduce(boundedConversation, {
+    type: "text_delta", requestId: requestId, data: { text: "answer " + index }
+  })
+  boundedConversation = ChatModel.reduce(boundedConversation, {
+    type: "complete", requestId: requestId, data: {}
+  })
+}
+assert.equal(boundedConversation.messages.length, 24)
+assert.equal(boundedConversation.messages.at(-1).text, "answer 39")
+
+const hostileMarkdown = "**safe** ![local](file:///etc/passwd) "
+  + "![remote](https://tracker.invalid/pixel.png) <img src='https://tracker.invalid/x'> "
+  + "<span style='background-image:url(https://tracker.invalid/y)'>tracked</span> "
+  + "<img\nsrc='https://tracker.invalid/multiline'> "
+  + "[normal link](https://omarchy.org)"
+const boundedMarkdown = TextBoundary.safeMarkdown(hostileMarkdown)
+assert.match(boundedMarkdown, /\*\*safe\*\*/)
+assert.match(boundedMarkdown, /\[normal link\]\(https:\/\/omarchy\.org\)/)
+assert.doesNotMatch(boundedMarkdown, /!\[/)
+assert.doesNotMatch(boundedMarkdown, /<img/i)
+assert.doesNotMatch(boundedMarkdown, /</)
+assert.doesNotMatch(boundedMarkdown, /file:\/\//i)
+assert.equal(TextBoundary.isSafeExternalLink("https://omarchy.org"), true)
+assert.equal(TextBoundary.isSafeExternalLink("mailto:test@example.com"), true)
+assert.equal(TextBoundary.isSafeExternalLink("file:///etc/passwd"), false)
+assert.equal(TextBoundary.isSafeExternalLink("javascript:alert(1)"), false)
+const boundedMetadata = TextBoundary.safeMetadata(
+  "&lt;img src='https://tracker.invalid/model'&gt; ![model](https://tracker.invalid/z)"
+)
+assert.doesNotMatch(boundedMetadata, /&|<|!\[/)
 
 const now = Date.parse("2026-08-16T15:30:00+00:00")
 assert.equal(TimeModel.relativeLabel("", now), "")

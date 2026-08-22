@@ -150,6 +150,7 @@ BorderSurface {
 
     Text {
       text: root.capturing ? "Esc cancels" : "󰌌"
+      textFormat: Text.PlainText
       color: Qt.darker(root.foreground, 1.4)
       font.family: root.fontFamily
       font.pixelSize: root.capturing ? Style.font.caption : Style.font.body

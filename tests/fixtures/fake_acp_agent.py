@@ -6,6 +6,8 @@ import sys
 protocol_version = 2 if "--mismatch" in sys.argv else 1
 permission_mode = "--permission" in sys.argv
 disconnect_prompt = "--disconnect-prompt" in sys.argv
+oversize_update = "--oversize-update" in sys.argv
+next_session = 1
 
 
 def send(value):
@@ -28,7 +30,12 @@ for line in sys.stdin:
             },
         })
     elif method == "session/new":
-        send({"jsonrpc": "2.0", "id": request_id, "result": {"sessionId": "session-1"}})
+        send({
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "result": {"sessionId": f"session-{next_session}"},
+        })
+        next_session += 1
     elif method == "session/load":
         send({
             "jsonrpc": "2.0",
@@ -57,7 +64,10 @@ for line in sys.stdin:
                 "sessionId": params["sessionId"],
                 "update": {
                     "sessionUpdate": "agent_message_chunk",
-                    "content": {"type": "text", "text": "Hello over ACP"},
+                    "content": {
+                        "type": "text",
+                        "text": "x" * (512 * 1024) if oversize_update else "Hello over ACP",
+                    },
                 },
             },
         })

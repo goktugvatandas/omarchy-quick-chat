@@ -3,11 +3,19 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from datetime import datetime
 from typing import Any
 
 from .models import Config, Conversation
 from .paths import PathSet
+from .sanitize import (
+    HISTORY_CONVERSATION_LIMIT,
+    HISTORY_FILE_LIMIT,
+    HISTORY_MESSAGE_BYTES,
+    HISTORY_MESSAGE_LIMIT,
+    truncate_text,
+)
 from .storage import atomic_write_json, quarantine, recovery_diagnostic
 
 
@@ -25,11 +33,60 @@ class HistoryStore:
             reverse=True,
         )
 
+    @staticmethod
+    def _bounded(conversation: Conversation) -> Conversation:
+        messages = tuple(
+            replace(message, content=truncate_text(message.content, HISTORY_MESSAGE_BYTES))
+            for message in conversation.messages[-HISTORY_MESSAGE_LIMIT:]
+        )
+        return replace(conversation, messages=messages)
+
+    @staticmethod
+    def _payload(conversations: list[Conversation]) -> dict[str, object]:
+        return {
+            "schemaVersion": 1,
+            "conversations": [item.to_dict() for item in conversations],
+        }
+
+    @classmethod
+    def _payload_size(cls, conversations: list[Conversation]) -> int:
+        serialized = json.dumps(
+            cls._payload(conversations),
+            ensure_ascii=False,
+            indent=2,
+            allow_nan=False,
+        ) + "\n"
+        return len(serialized.encode("utf-8"))
+
+    def _prune_quarantines(self) -> None:
+        quarantines = sorted(
+            self.paths.state_dir.glob(f"{self.paths.history_file.name}.corrupt-*"),
+            key=lambda path: path.name,
+            reverse=True,
+        )
+        retained_bytes = 0
+        for index, path in enumerate(quarantines):
+            try:
+                size = path.stat().st_size
+                keep = (
+                    index < 3
+                    and size <= HISTORY_FILE_LIMIT
+                    and retained_bytes + size <= 2 * HISTORY_FILE_LIMIT
+                )
+                if keep:
+                    retained_bytes += size
+                elif path.is_file() and not path.is_symlink():
+                    path.unlink(missing_ok=True)
+            except OSError:
+                continue
+
     def _load(self) -> list[Conversation]:
         self.last_diagnostic = None
         if not self.paths.history_file.exists():
             return []
         try:
+            if self.paths.history_file.stat().st_size > HISTORY_FILE_LIMIT:
+                raise ValueError("history exceeds the 32 MiB storage limit")
             with self.paths.history_file.open(encoding="utf-8") as stream:
                 value: Any = json.load(stream)
             if not isinstance(value, dict) or value.get("schemaVersion") != 1:
@@ -38,12 +95,13 @@ class HistoryStore:
             if not isinstance(raw_conversations, list):
                 raise ValueError("conversations must be an array")
             return self._sort([
-                Conversation.from_dict(conversation)
+                self._bounded(Conversation.from_dict(conversation))
                 for conversation in raw_conversations
-            ])
+            ])[:HISTORY_CONVERSATION_LIMIT]
         except (OSError, json.JSONDecodeError, TypeError, ValueError) as error:
             quarantined = quarantine(self.paths.history_file)
             self.last_diagnostic = recovery_diagnostic(quarantined, error)
+            self._prune_quarantines()
             return []
 
     def list(self) -> list[Conversation]:
@@ -56,6 +114,7 @@ class HistoryStore:
             return
         if not isinstance(conversation, Conversation):
             raise ValueError("conversation must be a Conversation record")
+        conversation = self._bounded(conversation)
 
         conversations = [
             current for current in self._load() if current.id != conversation.id
@@ -71,14 +130,22 @@ class HistoryStore:
         )
         if limit is not None:
             conversations = conversations[:limit]
+        conversations = conversations[:HISTORY_CONVERSATION_LIMIT]
 
-        atomic_write_json(
-            self.paths.history_file,
-            {
-                "schemaVersion": 1,
-                "conversations": [item.to_dict() for item in conversations],
-            },
-        )
+        if self._payload_size(conversations) > HISTORY_FILE_LIMIT:
+            low = 0
+            high = len(conversations)
+            while low < high:
+                candidate_count = (low + high + 1) // 2
+                if self._payload_size(
+                    conversations[:candidate_count]
+                ) <= HISTORY_FILE_LIMIT:
+                    low = candidate_count
+                else:
+                    high = candidate_count - 1
+            conversations = conversations[:low]
+
+        atomic_write_json(self.paths.history_file, self._payload(conversations))
 
     def clear(self) -> None:
         self.paths.history_file.unlink(missing_ok=True)

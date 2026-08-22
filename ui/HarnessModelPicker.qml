@@ -205,6 +205,7 @@ Item {
 
       Text {
         text: root.currentSelection.profileIcon
+        textFormat: Text.PlainText
         color: root.enabled ? root.foreground : Qt.darker(root.foreground, 2.0)
         font.family: root.fontFamily
         font.pixelSize: Style.font.icon
@@ -213,6 +214,7 @@ Item {
 
       Text {
         text: root.currentSelection.profileName
+        textFormat: Text.PlainText
         color: root.enabled ? root.foreground : Qt.darker(root.foreground, 2.0)
         font.family: root.fontFamily
         font.pixelSize: Style.font.body
@@ -232,6 +234,7 @@ Item {
 
       Text {
         text: root.currentSelection.modelLabel
+        textFormat: Text.PlainText
         color: Qt.darker(root.foreground, 1.25)
         font.family: root.fontFamily
         font.pixelSize: Style.font.bodySmall
@@ -242,6 +245,7 @@ Item {
 
       Text {
         text: pickerPopup.opened ? "󰅃" : "󰅀"
+        textFormat: Text.PlainText
         color: Qt.darker(root.foreground, 1.2)
         font.family: root.fontFamily
         font.pixelSize: Style.font.body
@@ -450,6 +454,7 @@ Item {
                     : (modelData.kind === "model"
                       ? (modelData.selected ? "󰄬" : "󰘦")
                       : (modelData.error ? "󰅚" : "󰔟"))
+                  textFormat: Text.PlainText
                   color: modelData.error
                     ? Color.urgent
                     : (pickerRow.hasCursor || pickerRow.current
@@ -469,6 +474,7 @@ Item {
                   Text {
                     Layout.fillWidth: true
                     text: String(modelData.label || "")
+                    textFormat: Text.PlainText
                     color: modelData.error
                       ? Color.urgent
                       : (pickerRow.hasCursor || pickerRow.current
@@ -487,6 +493,7 @@ Item {
                     text: modelData.kind === "harness"
                       ? String(modelData.adapterId || "custom").toUpperCase()
                       : String(modelData.description || "")
+                    textFormat: Text.PlainText
                     color: Qt.darker(root.foreground, 1.5)
                     font.family: root.fontFamily
                     font.pixelSize: Style.font.caption

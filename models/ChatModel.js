@@ -10,6 +10,25 @@ var STATUS_LABELS = {
   "cancelled": "Stopped",
   "error": "Error"
 }
+var MAX_ASSISTANT_CHARS = 256 * 1024
+var MAX_ATTEMPTS = 8
+var MAX_MESSAGES = 24
+var TRUNCATION_MARKER = "\n[Output truncated by Quick Chat.]"
+
+function boundedAssistantText(existing, addition) {
+  var current = String(existing || "")
+  var incoming = String(addition || "")
+  var remaining = MAX_ASSISTANT_CHARS - current.length
+  if (remaining <= 0) return current
+  if (incoming.length > remaining) {
+    if (remaining <= TRUNCATION_MARKER.length)
+      return current + TRUNCATION_MARKER.slice(0, remaining)
+    return current
+      + incoming.slice(0, remaining - TRUNCATION_MARKER.length)
+      + TRUNCATION_MARKER
+  }
+  return current + incoming
+}
 
 function statusLabel(status) {
   var key = String(status || "").toLowerCase()
@@ -53,6 +72,8 @@ function beginRun(state, requestId, prompt, attachments, privateMode) {
     attempts: [{ requestId: requestId, status: "running" }]
   }
   next.messages.push(userMessage)
+  if (next.messages.length > MAX_MESSAGES - 1)
+    next.messages = next.messages.slice(-(MAX_MESSAGES - 1))
   next.running = true
   next.activeRequestId = requestId
   next.activeUserIndex = next.messages.length - 1
@@ -79,8 +100,14 @@ function reduce(state, event) {
     if (!last || last.role !== "assistant" || last.requestId !== event.requestId) {
       last = { role: "assistant", text: "", requestId: event.requestId }
       next.messages.push(last)
+      if (next.messages.length > MAX_MESSAGES) {
+        var dropped = next.messages.length - MAX_MESSAGES
+        next.messages = next.messages.slice(-MAX_MESSAGES)
+        next.activeUserIndex = Math.max(-1, next.activeUserIndex - dropped)
+        last = next.messages[next.messages.length - 1]
+      }
     }
-    last.text += data.text || ""
+    last.text = boundedAssistantText(last.text, data.text)
   } else if (event.type === "session") {
     next.sessionId = data.sessionId || null
   } else if (event.type === "complete") {
@@ -103,6 +130,8 @@ function retryRun(state, requestId) {
     return !(message.role === "assistant" && message.requestId === state.activeRequestId)
   })
   var user = next.messages[next.activeUserIndex]
+  if (user.attempts.length >= MAX_ATTEMPTS)
+    user.attempts = user.attempts.slice(-(MAX_ATTEMPTS - 1))
   user.attempts.push({ requestId: requestId, status: "running" })
   next.activeRequestId = requestId
   next.running = true
@@ -120,10 +149,12 @@ function clearError(state) {
 function loadConversation(state, conversation) {
   if (!conversation || !conversation.id) throw new Error("invalid conversation")
   var next = initialState(conversation.id, conversation.profileId || state.profileId)
-  next.messages = (conversation.messages || []).map(function(message) {
+  next.messages = (conversation.messages || []).slice(-MAX_MESSAGES).map(function(message) {
     return {
       role: message.role,
-      text: message.content || message.text || "",
+      text: message.role === "assistant"
+        ? boundedAssistantText("", message.content || message.text || "")
+        : String(message.content || message.text || ""),
       attempts: message.role === "user" ? [] : undefined
     }
   })

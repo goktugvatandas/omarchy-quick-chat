@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import json
 import re
-import subprocess
 from dataclasses import dataclass
 from typing import Callable
 
 from .models import Config
+from .process_capture import run_bounded_checked
 
 
 MODIFIER_ORDER = ("SUPER", "ALT", "CTRL", "SHIFT")
@@ -18,7 +18,12 @@ LUA_DESCRIPTION_PREFIX = "Quick Chat: "
 
 
 def _default_runner(argv, **kwargs):
-    return subprocess.run(argv, **kwargs)
+    return run_bounded_checked(
+        tuple(argv),
+        timeout=kwargs.get("timeout", 3),
+        stdout_limit=1024 * 1024,
+        stderr_limit=64 * 1024,
+    )
 
 
 def normalize_shortcut(value: str) -> str:
@@ -91,11 +96,7 @@ def _owned(
 def _run(runner: Callable, argv: list[str]):
     return runner(
         argv,
-        capture_output=True,
-        text=True,
         timeout=3,
-        check=False,
-        shell=False,
     )
 
 

@@ -12,6 +12,11 @@ from pathlib import Path
 from typing import Iterable, Mapping
 
 from .adapters.base import EffortOption, ModelOption
+from .process_capture import (
+    CaptureLimitExceeded,
+    run_bounded,
+    terminate_process_group,
+)
 
 
 ANSI_PATTERN = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
@@ -55,29 +60,27 @@ def _safe_environment() -> dict[str, str]:
 def _run(
     argv: tuple[str, ...],
     cwd: Path | None,
-    input_text: str | None = None,
     timeout: float = 12,
 ) -> str:
     try:
-        result = subprocess.run(
+        result = run_bounded(
             argv,
             cwd=cwd,
             env=_safe_environment(),
-            input=input_text,
-            capture_output=True,
-            text=True,
             timeout=timeout,
-            check=False,
-            shell=False,
+            stdout_limit=MAX_OUTPUT_BYTES,
+            stderr_limit=MAX_OUTPUT_BYTES,
         )
     except FileNotFoundError as error:
         raise ModelDiscoveryError(f"{argv[0]} is not installed.") from error
     except subprocess.TimeoutExpired as error:
         raise ModelDiscoveryError(f"{argv[0]} model discovery timed out.") from error
+    except CaptureLimitExceeded as error:
+        raise ModelDiscoveryError(
+            f"{argv[0]} returned an oversized model catalog."
+        ) from error
 
     output = result.stdout or ""
-    if len(output.encode("utf-8", errors="replace")) > MAX_OUTPUT_BYTES:
-        raise ModelDiscoveryError(f"{argv[0]} returned an oversized model catalog.")
     if result.returncode != 0:
         diagnostic = ((result.stderr or "") + "\n" + output).lower()
         if any(word in diagnostic for word in ("auth", "login", "unauthorized", "sign in")):
@@ -128,12 +131,17 @@ def _exchange_json_response(
             ready = selector.select(remaining)
             if not ready:
                 break
-            line = process.stdout.readline()
+            line = process.stdout.readline(MAX_OUTPUT_BYTES + 1)
             if not line:
                 if process.poll() is not None:
                     break
                 continue
-            output_bytes += len(line.encode("utf-8", errors="replace"))
+            line_bytes = len(line.encode("utf-8", errors="replace"))
+            if line_bytes > MAX_OUTPUT_BYTES:
+                raise ModelDiscoveryError(
+                    f"{argv[0]} returned an oversized model catalog line."
+                )
+            output_bytes += line_bytes
             if output_bytes > MAX_OUTPUT_BYTES:
                 raise ModelDiscoveryError(
                     f"{argv[0]} returned an oversized model catalog."
@@ -153,13 +161,7 @@ def _exchange_json_response(
             process.stdin.close()
         except OSError:
             pass
-        if process.poll() is None:
-            process.terminate()
-            try:
-                process.wait(timeout=1)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait(timeout=1)
+        terminate_process_group(process)
         process.stdout.close()
 
 

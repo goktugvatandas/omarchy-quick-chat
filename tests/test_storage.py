@@ -134,6 +134,20 @@ class StorageTests(unittest.TestCase):
             history.upsert(sample_conversation(str(index)), private=False)
         self.assertEqual(len(history.list()), 25)
 
+    def test_loading_external_history_applies_conversation_safety_cap(self):
+        atomic_write_json(self.paths.history_file, {
+            "schemaVersion": 1,
+            "conversations": [
+                sample_conversation(str(index)).to_dict()
+                for index in range(600)
+            ],
+        })
+
+        loaded = self.history.list()
+
+        self.assertEqual(len(loaded), 512)
+        self.assertEqual(loaded[0].id, "conversation-599")
+
     def test_profile_retention_overrides_global_limit(self):
         profile = dataclasses.replace(self.config.profiles[0], history_limit=2)
         config = dataclasses.replace(
@@ -153,6 +167,24 @@ class StorageTests(unittest.TestCase):
         loaded = HistoryStore(self.paths, self.config).list()[0]
         self.assertEqual(loaded.cli_sessions, {"codex": "session-7"})
 
+    def test_history_bounds_message_count_and_content(self):
+        now = datetime(2026, 8, 16, tzinfo=UTC).isoformat()
+        messages = tuple(
+            Message("assistant", f"answer-{index}", now)
+            for index in range(149)
+        ) + (Message("assistant", "🙂" * (128 * 1024), now),)
+        conversation = dataclasses.replace(sample_conversation(), messages=messages)
+
+        self.history.upsert(conversation, private=False)
+        loaded = self.history.list()[0]
+
+        self.assertLessEqual(len(loaded.messages), 24)
+        self.assertLessEqual(
+            len(loaded.messages[-1].content.encode("utf-8")),
+            32 * 1024,
+        )
+        self.assertIn("truncated", loaded.messages[-1].content.lower())
+
     def test_clear_removes_persisted_history(self):
         self.history.upsert(sample_conversation(), private=False)
         self.history.clear()
@@ -170,6 +202,41 @@ class StorageTests(unittest.TestCase):
         quarantined = list(self.paths.config_dir.glob("config.json.corrupt-*"))
         self.assertEqual(len(quarantined), 1)
         self.assertEqual(store.last_diagnostic["path"], str(quarantined[0]))
+
+    def test_history_prunes_oldest_conversations_before_exceeding_file_limit(self):
+        with patch("bridge.quick_chat.history.HISTORY_FILE_LIMIT", 2048):
+            for index in range(12):
+                self.history.upsert(sample_conversation(str(index)), private=False)
+
+        self.assertLessEqual(self.paths.history_file.stat().st_size, 2048)
+        loaded = self.history.list()
+        self.assertGreater(len(loaded), 0)
+        self.assertEqual(loaded[0].id, "conversation-11")
+
+    def test_oversized_history_is_rejected_without_retaining_oversized_quarantine(self):
+        self.paths.state_dir.mkdir(parents=True)
+        self.paths.history_file.write_text("x" * 33)
+        history = HistoryStore(self.paths, self.config)
+
+        with patch("bridge.quick_chat.history.HISTORY_FILE_LIMIT", 32):
+            self.assertEqual(history.list(), [])
+
+        self.assertEqual(history.last_diagnostic["code"], "history_recovered")
+        self.assertEqual(
+            len(list(self.paths.state_dir.glob("history.json.corrupt-*"))),
+            0,
+        )
+
+    def test_history_keeps_at_most_three_quarantines(self):
+        self.paths.state_dir.mkdir(parents=True)
+        for index in range(5):
+            self.paths.history_file.write_text(f"{{broken-{index}")
+            self.assertEqual(HistoryStore(self.paths, self.config).list(), [])
+
+        self.assertLessEqual(
+            len(list(self.paths.state_dir.glob("history.json.corrupt-*"))),
+            3,
+        )
 
     def test_invalid_history_is_quarantined(self):
         self.paths.state_dir.mkdir(parents=True)

@@ -2,16 +2,24 @@
 
 from __future__ import annotations
 
-import subprocess
 import uuid
 from pathlib import Path
 from typing import Callable
 
+from ..process_capture import run_bounded_checked
 from .base import AttachmentRecord
 
 
+OCR_LIMIT = 256 * 1024
+
+
 def _default_runner(argv, **kwargs):
-    return subprocess.run(argv, **kwargs)
+    return run_bounded_checked(
+        tuple(argv),
+        timeout=kwargs.get("timeout", 30),
+        stdout_limit=OCR_LIMIT,
+        stderr_limit=64 * 1024,
+    )
 
 
 class OcrProvider:
@@ -23,11 +31,7 @@ class OcrProvider:
             raise ValueError("OCR source must be a regular image file")
         result = self.runner(
             ["tesseract", str(path), "stdout"],
-            capture_output=True,
-            text=True,
             timeout=30,
-            check=False,
-            shell=False,
         )
         if result.returncode != 0:
             raise RuntimeError(result.stderr.strip() or "OCR failed")

@@ -19,7 +19,9 @@ other negotiated version. New conversations use `session/new` with an absolute
 working directory and `mcpServers: []`; known mappings use `session/load`.
 Text and explicitly approved images are sent as typed content blocks through
 `session/prompt`. `session/update` agent chunks become `text_delta` events and
-tool updates become status events.
+tool updates become status events. ACP stdout is read in bounded physical lines
+and enters a 64-item backpressure queue. A run stops forwarding provider events
+after 1,024 updates or 256 KiB of assistant text.
 
 One ACP process is cached per adapter/model tuple and closes after ten idle
 minutes. If it has disconnected before a prompt, Quick Chat reconnects once and

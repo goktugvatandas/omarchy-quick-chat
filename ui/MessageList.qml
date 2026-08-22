@@ -1,6 +1,7 @@
 import QtQuick
 import qs.Commons
 import qs.Ui
+import "../models/TextBoundary.js" as TextBoundary
 
 ThemedScrollView {
   id: root
@@ -58,7 +59,9 @@ ThemedScrollView {
           x: Style.spacing.controlPaddingY
           y: Style.spacing.controlPaddingY
           width: bubble.width - Style.spacing.controlPaddingY * 2
-          text: messageRow.modelData.text || ""
+          text: messageRow.fromUser
+            ? (messageRow.modelData.text || "")
+            : TextBoundary.safeMarkdown(messageRow.modelData.text || "")
           // Agents answer in Markdown; render it for assistant messages.
           // User input stays plain so typed characters are never reinterpreted.
           textFormat: messageRow.fromUser
@@ -71,7 +74,10 @@ ThemedScrollView {
           selectionColor: Style.selectionFillFor(Color.popups.text, Color.accent)
           selectedTextColor: Color.popups.text
           selectByMouse: true
-          onLinkActivated: function(link) { Qt.openUrlExternally(link) }
+          onLinkActivated: function(link) {
+            if (TextBoundary.isSafeExternalLink(link))
+              Qt.openUrlExternally(link)
+          }
 
           HoverHandler {
             enabled: !messageRow.fromUser

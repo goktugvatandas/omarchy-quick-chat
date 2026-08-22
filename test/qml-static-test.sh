@@ -122,6 +122,9 @@ assert "stdinEnabled: true" in bridge, "bridge process must accept JSONL stdin"
 assert "SplitParser" in bridge, "bridge stdout must be split into lines"
 assert "JSON.stringify(object) + \"\\n\"" in bridge, "send() must write one JSON line"
 assert "stderr: SplitParser" in bridge, "stderr must remain separate"
+assert "maxPendingMessages" in bridge and "pendingMessages.length >= maxPendingMessages" in bridge, (
+    "bridge requests must be bounded while the child process is unavailable"
+)
 assert "onBridgePathChanged: start()" in bridge, (
     "bridge must start after Omarchy injects the plugin manifest"
 )
@@ -168,6 +171,9 @@ for forbidden in ("Hyprland", "Style.space", "maximize", "expand", "width", "hei
     )
 
 chat_header = (root / "ui/ChatHeader.qml").read_text()
+assert chat_header.count("textFormat: Text.PlainText") >= 3, (
+    "profile identity and provider status must render as plain text"
+)
 assert "Dropdown {" not in chat_header, (
     "agent selection belongs beside the composer, not in the header"
 )
@@ -260,8 +266,14 @@ assert "selectionRequested" in harness_picker, (
 assert "Qt.Key_Right" in harness_picker and "Qt.Key_Left" in harness_picker, (
     "the agent/model tree must expand and collapse with arrow keys"
 )
+assert harness_picker.count("textFormat: Text.PlainText") >= 2, (
+    "provider-controlled model labels and descriptions must render as plain text"
+)
 
 effort_picker = (root / "ui/ThinkingEffortPicker.qml").read_text()
+assert effort_picker.count("textFormat: Text.PlainText") >= 2, (
+    "provider-controlled effort metadata must render as plain text"
+)
 assert "wrapMode: Text.WordWrap" in effort_picker, (
     "effort descriptions must wrap instead of truncating mid-sentence"
 )
@@ -307,6 +319,12 @@ assert "messageRow.width - width : 0" in message_list, (
 assert "TextEdit.MarkdownText" in message_list, (
     "assistant replies must render agent Markdown"
 )
+assert "TextBoundary.safeMarkdown" in message_list, (
+    "provider Markdown must cross a boundary that strips automatic resources"
+)
+assert "TextBoundary.isSafeExternalLink" in message_list, (
+    "provider links must be scheme-checked before opening externally"
+)
 assert re.search(
     r"messageRow\.fromUser\s*\n?\s*\? TextEdit\.PlainText : TextEdit\.MarkdownText",
     message_list,
@@ -330,6 +348,9 @@ assert "root.cliState.toUpperCase()" not in chat_header_status, (
 )
 
 attachment_preview = (root / "ui/AttachmentPreview.qml").read_text()
+assert attachment_preview.count("textFormat: Text.PlainText") >= 2, (
+    "captured application metadata must render as plain text"
+)
 assert "implicitHeight: childrenRect.height" not in attachment_preview, (
     "Flow implicitHeight is read-only in the supported Qt runtime"
 )
@@ -378,6 +399,12 @@ assert "root.width - width" in scroll_view and "parent: root" in scroll_view, (
 )
 
 profile_settings = (root / "ui/ProfileSettings.qml").read_text()
+assert "TextBoundary.safeMetadata" in profile_settings, (
+    "model metadata must be sanitized before entering external AutoText controls"
+)
+assert profile_settings.count("textFormat: Text.PlainText") >= 6, (
+    "launcher and model metadata must render as plain text in settings"
+)
 assert "SearchableDropdown" in profile_settings, (
     "profile models must be selectable from a searchable discovered catalog"
 )
@@ -481,6 +508,9 @@ for literal in ("Ctrl+L", "Ctrl+K", "Ctrl+.", "Ctrl+H", "Ctrl+,", "Ctrl+Shift+P"
     assert literal in shortcut_editor, f"settings must present the {literal} default"
 
 history_drawer = (root / "ui/HistoryDrawer.qml").read_text()
+assert history_drawer.count("textFormat: Text.PlainText") >= 3, (
+    "saved titles and profile metadata must render as plain text"
+)
 assert "TimeModel.relativeLabel" in history_drawer, (
     "history rows must show human-readable times, not raw ISO timestamps"
 )
@@ -529,6 +559,9 @@ for code in (
     assert code in inline_error, f"missing recovery action for {code}"
 
 approval = (root / "ui/ApprovalCard.qml").read_text()
+assert approval.count("textFormat: Text.PlainText") >= 3, (
+    "approval metadata must render as plain text"
+)
 assert "Approve once" in approval
 assert "approve always" not in approval.lower()
 
@@ -537,6 +570,35 @@ for source, name in ((menu, "QuickChat.qml"), (service, "Service.qml")):
         assert re.search(rf"\bproperty\s+\w+\s+{prop}\b", source), (
             f"{name} must expose {prop}"
         )
+
+# QML Text defaults to AutoText. Every dynamic Text block must choose an
+# explicit format so future provider metadata cannot silently regain rich-text
+# or resource-loading behavior.
+for qml_path in root.rglob("*.qml"):
+    lines = qml_path.read_text().splitlines()
+    index = 0
+    while index < len(lines):
+        if lines[index].strip() != "Text {":
+            index += 1
+            continue
+        start = index
+        depth = lines[index].count("{") - lines[index].count("}")
+        index += 1
+        while index < len(lines) and depth:
+            depth += lines[index].count("{") - lines[index].count("}")
+            index += 1
+        block_lines = lines[start:index]
+        text_lines = [
+            line.strip() for line in block_lines if line.strip().startswith("text:")
+        ]
+        dynamic = any(
+            not line.startswith(("text: \"", "text: '")) for line in text_lines
+        )
+        if text_lines and dynamic:
+            assert any("textFormat:" in line for line in block_lines), (
+                f"{qml_path.relative_to(root)}:{start + 1} has dynamic Text without "
+                "an explicit textFormat"
+            )
 PY
 
 if command -v qmllint >/dev/null 2>&1; then

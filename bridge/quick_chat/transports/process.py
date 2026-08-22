@@ -2,16 +2,23 @@
 
 from __future__ import annotations
 
-import os
 import queue
-import signal
+import resource
 import subprocess
 import threading
 import time
 from typing import Callable, TextIO
 
 from ..adapters.base import AdapterEvent, Invocation
-from ..sanitize import bounded_diagnostic, strip_terminal_controls
+from ..process_capture import terminate_process_group
+from ..sanitize import (
+    DIAGNOSTIC_LIMIT,
+    PROCESS_LINE_LIMIT,
+    bounded_diagnostic,
+    bounded_text_prefix,
+    iter_bounded_lines,
+    strip_terminal_controls,
+)
 from .base import RunResult
 
 
@@ -24,8 +31,7 @@ class ProcessTransport:
 
     def is_running(self, request_id: str) -> bool:
         with self._lock:
-            process = self._processes.get(request_id)
-            return process is not None and process.poll() is None
+            return request_id in self._processes
 
     @staticmethod
     def _read_lines(
@@ -34,39 +40,18 @@ class ProcessTransport:
         output: queue.Queue[tuple[str, str | None]],
     ) -> None:
         try:
-            for line in stream:
+            for line in iter_bounded_lines(stream, PROCESS_LINE_LIMIT):
                 output.put((name, line))
         finally:
             output.put((name, None))
 
-    @staticmethod
-    def _signal_group(process: subprocess.Popen[str], sig: signal.Signals) -> None:
-        if process.poll() is None:
-            try:
-                os.killpg(process.pid, sig)
-            except ProcessLookupError:
-                pass
-
     def _terminate(self, process: subprocess.Popen[str]) -> None:
-        self._signal_group(process, signal.SIGINT)
-        try:
-            process.wait(timeout=1)
-            return
-        except subprocess.TimeoutExpired:
-            pass
-        self._signal_group(process, signal.SIGTERM)
-        try:
-            process.wait(timeout=2)
-            return
-        except subprocess.TimeoutExpired:
-            pass
-        self._signal_group(process, signal.SIGKILL)
-        process.wait(timeout=2)
+        terminate_process_group(process)
 
     def cancel(self, request_id: str) -> bool:
         with self._lock:
             process = self._processes.get(request_id)
-            if process is None or process.poll() is not None:
+            if process is None:
                 return False
             self._cancelled.add(request_id)
         self._terminate(process)
@@ -90,6 +75,16 @@ class ProcessTransport:
             text=True,
             bufsize=1,
         )
+        if invocation.file_size_limit is not None:
+            try:
+                resource.prlimit(
+                    process.pid,
+                    resource.RLIMIT_FSIZE,
+                    (invocation.file_size_limit, invocation.file_size_limit),
+                )
+            except (OSError, ValueError):
+                self._terminate(process)
+                raise RuntimeError("unable to apply provider file size limit")
         with self._lock:
             if request_id in self._processes:
                 self._terminate(process)
@@ -106,7 +101,9 @@ class ProcessTransport:
 
         assert process.stdout is not None
         assert process.stderr is not None
-        output: queue.Queue[tuple[str, str | None]] = queue.Queue()
+        # A bounded queue backpressures a noisy child instead of retaining its
+        # entire output burst in the desktop process.
+        output: queue.Queue[tuple[str, str | None]] = queue.Queue(maxsize=64)
         readers = (
             threading.Thread(
                 target=self._read_lines,
@@ -125,10 +122,11 @@ class ProcessTransport:
         started = time.monotonic()
         completed_streams = 0
         stderr_chunks: list[str] = []
+        stderr_bytes = 0
         timed_out = False
         try:
             while completed_streams < 2 or process.poll() is None:
-                if process.poll() is None and time.monotonic() - started > self.timeout_seconds:
+                if not timed_out and time.monotonic() - started > self.timeout_seconds:
                     timed_out = True
                     self._terminate(process)
                 try:
@@ -138,7 +136,11 @@ class ProcessTransport:
                 if line is None:
                     completed_streams += 1
                 elif source == "stderr":
-                    stderr_chunks.append(line)
+                    if stderr_bytes < DIAGNOSTIC_LIMIT:
+                        remaining = DIAGNOSTIC_LIMIT - stderr_bytes
+                        chunk, _, retained_bytes = bounded_text_prefix(line, remaining)
+                        stderr_chunks.append(chunk)
+                        stderr_bytes += retained_bytes
                 else:
                     text = strip_terminal_controls(line.rstrip("\r\n"))
                     if text:
@@ -155,6 +157,7 @@ class ProcessTransport:
                 timed_out=timed_out,
             )
         finally:
+            terminate_process_group(process)
             if process.stdout is not None:
                 process.stdout.close()
             if process.stderr is not None:

@@ -172,6 +172,31 @@ class EventTests(unittest.TestCase):
         self.assertEqual(len(encoded.splitlines()), 1)
         self.assertEqual(json.loads(encoded)["data"]["text"], "hello\nworld")
 
+    def test_event_text_is_bounded_by_utf8_bytes(self):
+        encoded = Event(
+            "text_delta", "req-1", {"text": "🙂" * (128 * 1024)}
+        ).to_json()
+        payload = json.loads(encoded)
+
+        self.assertLessEqual(len(encoded.encode("utf-8")), 1024 * 1024)
+        self.assertLessEqual(
+            len(payload["data"]["text"].encode("utf-8")),
+            64 * 1024,
+        )
+        self.assertIn("truncated", payload["data"]["text"].lower())
+
+    def test_event_preserves_first_party_collections_and_strings(self):
+        conversations = [{"id": str(index)} for index in range(200)]
+        instructions = "x" * 40000
+        encoded = Event("complete", "req-1", {
+            "conversations": conversations,
+            "instructions": instructions,
+        }).to_json()
+        data = json.loads(encoded)["data"]
+
+        self.assertEqual(len(data["conversations"]), 200)
+        self.assertEqual(data["instructions"], instructions)
+
     def test_event_rejects_unknown_type(self):
         with self.assertRaises(ProtocolError):
             Event("mystery", "req-1", {}).to_json()
@@ -201,6 +226,15 @@ class JsonLineLoopTests(unittest.TestCase):
 
     def test_loop_rejects_an_oversize_physical_line(self):
         source = io.StringIO("{" + "x" * (1024 * 1024) + "}\n")
+        destination = io.StringIO()
+
+        run(source, destination)
+
+        events = [json.loads(line) for line in destination.getvalue().splitlines()]
+        self.assertEqual(events[-1]["data"]["code"], "request_too_large")
+
+    def test_loop_drains_an_oversize_unterminated_physical_line(self):
+        source = io.StringIO("{" + "x" * (2 * 1024 * 1024))
         destination = io.StringIO()
 
         run(source, destination)

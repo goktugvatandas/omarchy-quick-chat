@@ -60,10 +60,32 @@ class AcpTransportTests(unittest.TestCase):
         self.assertEqual(decisions[0]["operation"], "read_file")
         self.assertFalse(self.transport.permission_responses[-1])
 
+    def test_oversized_acp_update_is_discarded_before_event_queueing(self):
+        self.transport = self.make_transport("--oversize-update")
+        session = self.transport.open_session(Path("/tmp"), None)
+        events = []
+
+        result = self.transport.prompt(
+            session.id, [text_block("test")], events.append
+        )
+
+        self.assertEqual(result.stop_reason, "end_turn")
+        self.assertEqual(events, [])
+
     def test_protocol_mismatch_is_rejected(self):
         self.transport = self.make_transport("--mismatch")
         with self.assertRaises(AcpProtocolError):
             self.transport.open_session(Path("/tmp"), None)
+
+    def test_session_and_permission_diagnostics_are_bounded(self):
+        self.transport = self.make_transport()
+        for _ in range(70):
+            self.transport.open_session(Path("/tmp"), None)
+        for index in range(100):
+            self.transport.permission_responses.append(bool(index % 2))
+
+        self.assertEqual(len(self.transport._sessions), 64)
+        self.assertEqual(len(self.transport.permission_responses), 64)
 
     def test_cancel_targets_active_session(self):
         self.transport = self.make_transport()

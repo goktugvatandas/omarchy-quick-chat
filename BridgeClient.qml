@@ -10,6 +10,7 @@ Item {
   property bool stopping: false
   property int restartCount: 0
   property var pendingMessages: []
+  readonly property int maxPendingMessages: 16
   property string diagnostic: ""
   readonly property string bridgePath: manifest && manifest.__sourceDir
     ? manifest.__sourceDir + "/bridge/quick-chat-bridge"
@@ -35,6 +36,10 @@ Item {
   function send(object) {
     if (!object) return
     if (!ready) {
+      if (pendingMessages.length >= maxPendingMessages) {
+        bridgeFailed("Quick Chat bridge request queue is full.")
+        return
+      }
       pendingMessages = pendingMessages.concat([object])
       start()
       return

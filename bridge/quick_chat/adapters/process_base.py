@@ -7,6 +7,7 @@ import subprocess
 from dataclasses import replace
 from pathlib import Path
 
+from ..process_capture import CaptureLimitExceeded, run_bounded
 from .base import Capabilities, EffortOption, ModelOption
 
 
@@ -48,13 +49,11 @@ class ProcessAdapterBase:
 
     def detect(self) -> dict[str, object]:
         try:
-            result = subprocess.run(
+            result = run_bounded(
                 (self.executable, "--version"),
-                capture_output=True,
-                text=True,
                 timeout=2,
-                check=False,
-                shell=False,
+                stdout_limit=64 * 1024,
+                stderr_limit=64 * 1024,
             )
         except FileNotFoundError:
             return {
@@ -66,6 +65,12 @@ class ProcessAdapterBase:
             return {
                 "available": False,
                 "code": "probe_timeout",
+                "executable": self.executable,
+            }
+        except CaptureLimitExceeded:
+            return {
+                "available": False,
+                "code": "probe_output_too_large",
                 "executable": self.executable,
             }
 

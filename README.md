@@ -91,8 +91,11 @@ use another app.
 
 The header switches profiles and toggles private mode. History keeps the 20
 most recently updated conversations by default. Set any positive finite limit
-or Unlimited globally or per profile. Clear History removes Quick Chat's
-messages and session mappings, but does not delete sessions owned by a CLI.
+or remove the configured count limit globally or per profile. The
+512-conversation and 32 MiB history-file safety ceilings still apply. Clear
+History removes Quick Chat's messages and session mappings, but does not
+delete sessions owned by external CLIs. Quick Chat's own Pi session files
+follow the retention limits documented below.
 
 ## CLI prerequisites
 
@@ -166,6 +169,18 @@ are configured.
 Approvals offer only Approve once and Deny. If process mode cannot relay an
 approval safely, Quick Chat denies it and offers to continue the native session
 in a terminal.
+
+Assistant replies keep Markdown headings, lists, emphasis, code, and normal
+links. Quick Chat rewrites image syntax and raw HTML before QML renders the
+reply, so provider text cannot load local or remote resources. Only `http`,
+`https`, and `mailto` links can open externally.
+
+Quick Chat caps each process or ACP line at 64 KiB, each response at 256 KiB,
+and each run at 1,024 provider events. The process queue holds at most 64 lines.
+Live and persisted conversations keep the newest 24 messages and at most 32 KiB
+per persisted message. A history file above 32 MiB is quarantined instead of
+loaded. Quick Chat also stops a Pi session at 4 MiB and retains at most 24 Pi
+session files or 32 MiB total.
 
 ## Desktop context and privacy
 

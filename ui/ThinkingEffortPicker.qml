@@ -120,6 +120,7 @@ Item {
       Text {
         Layout.fillWidth: true
         text: root.currentLabel
+        textFormat: Text.PlainText
         color: root.enabled && root.choices.length > 0
           ? root.foreground : Qt.darker(root.foreground, 1.8)
         font.family: root.fontFamily
@@ -131,6 +132,7 @@ Item {
       Text {
         visible: root.choices.length > 0
         text: effortPopup.opened ? "󰅃" : "󰅀"
+        textFormat: Text.PlainText
         color: Qt.darker(root.foreground, 1.2)
         font.family: root.fontFamily
         font.pixelSize: Style.font.bodySmall
@@ -276,6 +278,7 @@ Item {
 
               Text {
                 text: modelData.selected ? "󰄬" : "󰘦"
+                textFormat: Text.PlainText
                 color: effortRow.hasCursor || effortRow.current
                   ? Style.hoverStateColor(root.foreground, root.accent)
                   : root.foreground
@@ -292,6 +295,7 @@ Item {
                 Text {
                   Layout.fillWidth: true
                   text: modelData.label
+                  textFormat: Text.PlainText
                   color: effortRow.hasCursor || effortRow.current
                     ? Style.hoverStateColor(root.foreground, root.accent)
                     : root.foreground
@@ -305,6 +309,7 @@ Item {
                   Layout.fillWidth: true
                   visible: Boolean(modelData.description)
                   text: modelData.description
+                  textFormat: Text.PlainText
                   color: Qt.darker(root.foreground, 1.45)
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.caption

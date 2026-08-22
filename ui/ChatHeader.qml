@@ -47,6 +47,7 @@ Item {
     anchors.left: parent.left
     anchors.verticalCenter: parent.verticalCenter
     text: root.activeProfile() ? (root.activeProfile().icon || "󰚩") : "󰚩"
+    textFormat: Text.PlainText
     color: Color.popups.text
     font.family: Style.font.menuFamily
     font.pixelSize: Style.font.display
@@ -66,6 +67,7 @@ Item {
     Text {
       width: parent.width
       text: root.activeProfile() ? root.activeProfile().name : "Quick Chat"
+      textFormat: Text.PlainText
       color: Color.popups.text
       font.family: Style.font.menuFamily
       font.pixelSize: Style.font.body
@@ -76,6 +78,7 @@ Item {
     Text {
       width: parent.width
       text: ChatModel.statusLabel(root.cliState).toUpperCase()
+      textFormat: Text.PlainText
       color: Qt.darker(Color.popups.text, 1.4)
       font.family: Style.font.menuFamily
       font.pixelSize: Style.font.caption

@@ -61,7 +61,7 @@ def adjacent_pairs(values):
 
 
 class CodexAdapterTests(unittest.TestCase):
-    @patch("bridge.quick_chat.adapters.process_base.subprocess.run")
+    @patch("bridge.quick_chat.adapters.process_base.run_bounded")
     def test_detection_uses_provider_version_after_mise_preamble(self, run):
         run.return_value = Mock(
             returncode=0,
@@ -319,7 +319,7 @@ class RemainingAdapterTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             CursorAdapter().start(context(thinking_effort="high"))
 
-    @patch("bridge.quick_chat.model_discovery.subprocess.run")
+    @patch("bridge.quick_chat.model_discovery.run_bounded")
     def test_help_efforts_require_explicit_choices_for_the_requested_flag(self, run):
         cases = (
             (
@@ -352,7 +352,7 @@ class RemainingAdapterTests(unittest.TestCase):
                 )
                 self.assertEqual(run.call_args.args[0], argv)
 
-    @patch("bridge.quick_chat.model_discovery.subprocess.run")
+    @patch("bridge.quick_chat.model_discovery.run_bounded")
     def test_extended_effort_ids_get_readable_labels(self, run):
         run.return_value = Mock(
             returncode=0,
@@ -365,7 +365,7 @@ class RemainingAdapterTests(unittest.TestCase):
             [("low", "Low"), ("xhigh", "Extra High")],
         )
 
-    @patch("bridge.quick_chat.model_discovery.subprocess.run")
+    @patch("bridge.quick_chat.model_discovery.run_bounded")
     def test_catalog_efforts_come_only_from_explicit_variants_and_parameters(self, run):
         run.return_value = Mock(
             returncode=0,
@@ -402,7 +402,7 @@ class RemainingAdapterTests(unittest.TestCase):
             ["low", "high"],
         )
 
-    @patch("bridge.quick_chat.model_discovery.subprocess.run")
+    @patch("bridge.quick_chat.model_discovery.run_bounded")
     def test_cli_catalog_commands_are_parsed_into_selectable_models(self, run):
         fixtures = (
             (OpenCodeAdapter(), ("opencode", "models"), "anthropic/claude-sonnet-4\nopenai/gpt-5\n", ["anthropic/claude-sonnet-4", "openai/gpt-5"]),
@@ -434,7 +434,7 @@ class RemainingAdapterTests(unittest.TestCase):
         self.assertEqual(cursor_models[1].label, "GPT-5")
         self.assertEqual(cursor_models[1].description, "gpt-5")
 
-    @patch("bridge.quick_chat.model_discovery.subprocess.run")
+    @patch("bridge.quick_chat.model_discovery.run_bounded")
     def test_grok_catalog_ignores_login_prose_and_marks_native_default(self, run):
         run.return_value = Mock(
             returncode=0,
@@ -514,6 +514,8 @@ class RemainingAdapterTests(unittest.TestCase):
         self.assertIn(("--model", "gpt-5"), adjacent_pairs(call.argv))
         session_path = call.argv[call.argv.index("--session") + 1]
         self.assertTrue(session_path.startswith(state))
+        self.assertEqual(call.file_size_limit, 4 * 1024 * 1024)
+        self.assertEqual(Path(call.argv[1]).name, "quick-chat-limited-exec")
         for forbidden in ("bash", "edit", "write"):
             self.assertNotIn(forbidden, call.argv)
 
@@ -529,6 +531,36 @@ class RemainingAdapterTests(unittest.TestCase):
                 ))
                 adapter.cleanup_private_session()
                 self.assertFalse(session_path.exists())
+
+    def test_pi_oversized_session_is_detected_and_removed(self):
+        with tempfile.TemporaryDirectory() as state:
+            adapter = PiAdapter(state_dir=Path(state))
+            adapter.session_file_limit = 32
+            call = adapter.start(context())
+            session_path = Path(call.argv[call.argv.index("--session") + 1])
+            session_path.parent.mkdir(parents=True, exist_ok=True)
+            session_path.write_bytes(b"x" * 32)
+
+            self.assertTrue(adapter.session_limit_exceeded())
+            adapter.finalize_session()
+            self.assertFalse(session_path.exists())
+
+    def test_pi_session_retention_is_bounded_by_count(self):
+        with tempfile.TemporaryDirectory() as state:
+            directory = Path(state)
+            adapter = PiAdapter(state_dir=directory)
+            adapter.session_count_limit = 2
+            for index in range(3):
+                path = directory / f"{index}.jsonl"
+                path.write_text("session")
+                os.utime(path, (index + 1, index + 1))
+
+            adapter.finalize_session()
+
+            self.assertEqual(
+                sorted(path.name for path in directory.glob("*.jsonl")),
+                ["1.jsonl", "2.jsonl"],
+            )
 
     def test_four_adapter_fixtures_normalize_streams(self):
         fixtures = (

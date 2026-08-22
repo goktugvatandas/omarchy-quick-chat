@@ -1,0 +1,24 @@
+#!/usr/bin/python3
+"""Apply a file-size rlimit before executing a provider command."""
+
+import os
+import resource
+import sys
+
+
+def main() -> int:
+    if len(sys.argv) < 3:
+        return 64
+    try:
+        limit = int(sys.argv[1])
+    except ValueError:
+        return 64
+    if limit <= 0:
+        return 64
+    resource.setrlimit(resource.RLIMIT_FSIZE, (limit, limit))
+    os.execvp(sys.argv[2], sys.argv[2:])
+    return 127
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

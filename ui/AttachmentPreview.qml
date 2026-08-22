@@ -44,6 +44,7 @@ Flow {
           Text {
             Layout.fillWidth: true
             text: modelData.appName || (modelData.kind === "image" ? "Screenshot" : "Context")
+            textFormat: Text.PlainText
             color: Color.popups.text
             font.family: Style.font.menuFamily
             font.pixelSize: Style.font.body
@@ -66,6 +67,7 @@ Flow {
 
           Text {
             text: String(modelData.size || 0) + " bytes"
+            textFormat: Text.PlainText
             color: Util.alpha(Color.popups.text, 0.5)
             font.family: Style.font.menuFamily
             font.pixelSize: Style.font.caption

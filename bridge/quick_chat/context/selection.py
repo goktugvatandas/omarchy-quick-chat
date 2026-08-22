@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import subprocess
 import uuid
 from typing import Callable
 
+from ..process_capture import run_bounded_checked
 from .base import AttachmentRecord
 
 
@@ -13,7 +13,12 @@ SELECTION_LIMIT = 256 * 1024
 
 
 def _default_runner(argv, **kwargs):
-    return subprocess.run(argv, **kwargs)
+    return run_bounded_checked(
+        tuple(argv),
+        timeout=kwargs.get("timeout", 2),
+        stdout_limit=SELECTION_LIMIT,
+        stderr_limit=64 * 1024,
+    )
 
 
 class SelectionProvider:
@@ -23,11 +28,7 @@ class SelectionProvider:
     def capture(self) -> AttachmentRecord:
         result = self.runner(
             ["wl-paste", "--primary", "--no-newline"],
-            capture_output=True,
-            text=True,
             timeout=2,
-            check=False,
-            shell=False,
         )
         if result.returncode != 0:
             raise RuntimeError(result.stderr.strip() or "selected text is unavailable")

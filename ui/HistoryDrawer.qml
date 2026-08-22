@@ -154,6 +154,7 @@ FocusScope {
 
             Text {
               text: root.profileIcon(conversationRow.modelData.profileId)
+              textFormat: Text.PlainText
               color: Color.popups.text
               font.family: Style.font.menuFamily
               font.pixelSize: Style.font.iconLarge
@@ -169,6 +170,7 @@ FocusScope {
               Text {
                 width: parent.width
                 text: conversationRow.modelData.title || "Untitled"
+                textFormat: Text.PlainText
                 color: Color.popups.text
                 font.family: Style.font.menuFamily
                 font.pixelSize: Style.font.heading
@@ -180,6 +182,7 @@ FocusScope {
                 width: parent.width
                 text: root.profileName(conversationRow.modelData.profileId)
                   + " · " + TimeModel.relativeLabel(conversationRow.modelData.updatedAt)
+                textFormat: Text.PlainText
                 color: Qt.darker(Color.popups.text, 1.4)
                 font.family: Style.font.menuFamily
                 font.pixelSize: Style.font.bodySmall

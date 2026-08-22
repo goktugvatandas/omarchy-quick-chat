@@ -6,11 +6,14 @@ import json
 import queue
 import subprocess
 import threading
+from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
+from typing import Callable, TextIO, cast
 
 from ..adapters.base import AdapterEvent
+from ..process_capture import terminate_process_group
+from ..sanitize import PROCESS_LINE_LIMIT, iter_bounded_lines
 
 
 class AcpError(RuntimeError):
@@ -45,6 +48,8 @@ def image_block(path: Path, mime_type: str = "image/png") -> dict[str, object]:
 
 
 class AcpTransport:
+    session_limit = 64
+
     def __init__(
         self,
         argv: tuple[str, ...],
@@ -60,7 +65,7 @@ class AcpTransport:
         self.request_timeout = request_timeout
         self.protocol_version: int | None = None
         self.loaded_session_id: str | None = None
-        self.permission_responses: list[bool] = []
+        self.permission_responses: deque[bool] = deque(maxlen=64)
         self._process: subprocess.Popen[str] | None = None
         self._reader: threading.Thread | None = None
         self._write_lock = threading.Lock()
@@ -91,7 +96,7 @@ class AcpTransport:
             self.argv,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
             shell=False,
             start_new_session=True,
             text=True,
@@ -159,7 +164,9 @@ class AcpTransport:
         if process is None or process.stdout is None:
             return
         try:
-            for line in process.stdout:
+            for line in iter_bounded_lines(
+                cast(TextIO, process.stdout), PROCESS_LINE_LIMIT
+            ):
                 try:
                     value = json.loads(line)
                 except json.JSONDecodeError:
@@ -178,6 +185,7 @@ class AcpTransport:
                 elif method == "session/update":
                     self._handle_update(value.get("params"))
         finally:
+            terminate_process_group(process)
             error = AcpDisconnected("ACP agent disconnected")
             with self._state_lock:
                 pending = list(self._pending.values())
@@ -246,6 +254,9 @@ class AcpTransport:
                 raise AcpProtocolError("ACP session/new returned no sessionId")
         session = AcpSession(session_id, cwd)
         self._sessions[session.id] = session
+        while len(self._sessions) > self.session_limit:
+            oldest = next(iter(self._sessions))
+            self._sessions.pop(oldest, None)
         self._touch_idle()
         return session
 
@@ -284,13 +295,8 @@ class AcpTransport:
 
     def disconnect(self) -> None:
         process = self._process
-        if process is not None and process.poll() is None:
-            process.terminate()
-            try:
-                process.wait(timeout=1)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait(timeout=1)
+        if process is not None:
+            terminate_process_group(process)
         if self._reader is not None:
             self._reader.join(timeout=1)
         if process is not None:

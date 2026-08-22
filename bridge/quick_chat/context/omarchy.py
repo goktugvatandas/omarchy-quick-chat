@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import subprocess
 import uuid
 from typing import Callable
 
+from ..process_capture import run_bounded_checked
 from .base import AttachmentRecord
 
 
@@ -16,7 +16,12 @@ QUERY_COMMANDS = {
 
 
 def _default_runner(argv, **kwargs):
-    return subprocess.run(argv, **kwargs)
+    return run_bounded_checked(
+        tuple(argv),
+        timeout=kwargs.get("timeout", 15),
+        stdout_limit=1024 * 1024,
+        stderr_limit=64 * 1024,
+    )
 
 
 class OmarchyQueryProvider:
@@ -29,11 +34,7 @@ class OmarchyQueryProvider:
         command = QUERY_COMMANDS[name]
         result = self.runner(
             command,
-            capture_output=True,
-            text=True,
             timeout=15,
-            check=False,
-            shell=False,
         )
         if result.returncode != 0:
             raise RuntimeError(result.stderr.strip() or "Omarchy query failed")

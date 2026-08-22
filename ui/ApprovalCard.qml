@@ -40,6 +40,7 @@ BorderSurface {
     Text {
       Layout.fillWidth: true
       text: root.adapterName + " requests approval"
+      textFormat: Text.PlainText
       color: Color.popups.text
       font.family: Style.font.menuFamily
       font.pixelSize: Style.font.subtitle

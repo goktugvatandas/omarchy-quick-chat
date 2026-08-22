@@ -48,6 +48,7 @@ ColumnLayout {
 
       Text {
         text: root.expanded ? "󰅀" : "󰅂"
+        textFormat: Text.PlainText
         color: Qt.darker(Color.popups.text, 1.2)
         font.family: Style.font.menuFamily
         font.pixelSize: Style.font.bodySmall
@@ -57,6 +58,7 @@ ColumnLayout {
       Text {
         Layout.fillWidth: true
         text: root.title
+        textFormat: Text.PlainText
         color: Color.popups.text
         font.family: Style.font.menuFamily
         font.pixelSize: Style.font.body
@@ -68,6 +70,7 @@ ColumnLayout {
       Text {
         visible: !root.expanded && root.hint.length > 0
         text: root.hint
+        textFormat: Text.PlainText
         color: Qt.darker(Color.popups.text, 1.5)
         font.family: Style.font.menuFamily
         font.pixelSize: Style.font.caption

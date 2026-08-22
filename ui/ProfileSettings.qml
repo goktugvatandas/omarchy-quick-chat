@@ -4,6 +4,7 @@ import QtQuick.Window
 import qs.Commons
 import qs.Ui
 import "../models/EffortModel.js" as EffortModel
+import "../models/TextBoundary.js" as TextBoundary
 
 FocusScope {
   id: root
@@ -159,8 +160,8 @@ FocusScope {
       var model = root.modelOptions[index]
       options.push({
         value: String(model.id || ""),
-        label: String(model.label || model.id || ""),
-        description: String(model.description || "")
+        label: TextBoundary.safeMetadata(model.label || model.id || ""),
+        description: TextBoundary.safeMetadata(model.description || "")
       })
     }
     return options
@@ -384,6 +385,7 @@ FocusScope {
 
               Text {
                 text: launcherRow.modelData.icon || "󰚩"
+                textFormat: Text.PlainText
                 color: Color.popups.text
                 font.family: Style.font.menuFamily
                 font.pixelSize: Style.font.iconLarge
@@ -402,6 +404,7 @@ FocusScope {
 
                   Text {
                     text: launcherRow.modelData.name || "Untitled"
+                    textFormat: Text.PlainText
                     color: Color.popups.text
                     font.family: Style.font.menuFamily
                     font.pixelSize: Style.font.heading
@@ -438,6 +441,7 @@ FocusScope {
                 Text {
                   Layout.fillWidth: true
                   text: root.launcherMeta(launcherRow.modelData)
+                  textFormat: Text.PlainText
                   color: Qt.darker(Color.popups.text, 1.4)
                   font.family: Style.font.menuFamily
                   font.pixelSize: Style.font.bodySmall
@@ -549,6 +553,7 @@ FocusScope {
             iconComponent: Component {
               Text {
                 text: root.editingProfile ? (root.editingProfile.icon || "󰚩") : "󰚩"
+                textFormat: Text.PlainText
                 color: Color.popups.text
                 font.family: Style.font.menuFamily
                 font.pixelSize: Style.font.display

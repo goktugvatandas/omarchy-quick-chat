@@ -85,6 +85,7 @@ class Invocation:
     cwd: Path
     env: Mapping[str, str]
     stdin_text: str | None
+    file_size_limit: int | None = None
 
     def __post_init__(self) -> None:
         if not self.argv or not all(isinstance(value, str) and value for value in self.argv):
@@ -95,6 +96,15 @@ class Invocation:
             raise ValueError("invocation environment must map strings to strings")
         if self.stdin_text is not None and not isinstance(self.stdin_text, str):
             raise ValueError("invocation stdin must be a string or null")
+        if (
+            self.file_size_limit is not None
+            and (
+                isinstance(self.file_size_limit, bool)
+                or not isinstance(self.file_size_limit, int)
+                or self.file_size_limit <= 0
+            )
+        ):
+            raise ValueError("invocation file size limit must be a positive integer or null")
 
 
 @dataclass(frozen=True)

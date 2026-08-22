@@ -10,9 +10,11 @@ from typing import Any, Literal, Mapping
 
 from .models import require_identifier, require_optional_string
 from .paths import PathSet
+from .sanitize import PROCESS_LINE_LIMIT, truncate_text
 
 
 MAX_REQUEST_BYTES = 1024 * 1024
+MAX_EVENT_BYTES = 1024 * 1024
 
 REQUEST_TYPES = frozenset({
     "run",
@@ -218,10 +220,29 @@ class Event:
         if not isinstance(self.data, dict):
             raise ProtocolError("event data must be an object", "invalid_event")
         try:
-            return json.dumps(
-                {"type": self.type, "requestId": request_id, "data": self.data},
+            safe_data = dict(self.data)
+            if self.type == "text_delta":
+                safe_data["text"] = truncate_text(
+                    self.data.get("text", ""), PROCESS_LINE_LIMIT
+                )
+            encoded = json.dumps(
+                {
+                    "type": self.type,
+                    "requestId": request_id,
+                    "data": safe_data,
+                },
                 allow_nan=False,
                 separators=(",", ":"),
             )
+            if len(encoded.encode("utf-8")) > MAX_EVENT_BYTES:
+                return json.dumps({
+                    "type": "error",
+                    "requestId": request_id,
+                    "data": {
+                        "code": "response_too_large",
+                        "message": "Bridge response exceeded the 1 MiB wire limit.",
+                    },
+                }, separators=(",", ":"))
+            return encoded
         except (TypeError, ValueError) as error:
             raise ProtocolError("event data is not JSON serializable", "invalid_event") from error

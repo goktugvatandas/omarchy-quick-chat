@@ -3,17 +3,22 @@
 from __future__ import annotations
 
 import json
-import subprocess
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
+from ..process_capture import run_bounded_checked
 from .base import AttachmentRecord
 
 
 def _default_runner(argv, **kwargs):
-    return subprocess.run(argv, **kwargs)
+    return run_bounded_checked(
+        tuple(argv),
+        timeout=kwargs.get("timeout", 2),
+        stdout_limit=64 * 1024,
+        stderr_limit=64 * 1024,
+    )
 
 
 @dataclass(frozen=True)
@@ -45,11 +50,7 @@ class ActiveAppProvider:
     def get(self) -> AppMetadata:
         result = self.runner(
             ["hyprctl", "-j", "activewindow"],
-            capture_output=True,
-            text=True,
             timeout=2,
-            check=False,
-            shell=False,
         )
         if result.returncode != 0:
             raise RuntimeError(result.stderr.strip() or "active window lookup failed")
