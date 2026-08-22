@@ -106,7 +106,7 @@ tools:
 - `cursor-agent`
 - `pi`
 
-The plugin itself additionally needs `python3` ≥ 3.9 and `jq` on `PATH`
+The plugin itself additionally needs `python3` ≥ 3.11 and `jq` on `PATH`
 (the menu entry's `when` guard evaluates `~/.config/omarchy/shell.json` with
 `jq`; without it the menu entry is silently hidden).
 
