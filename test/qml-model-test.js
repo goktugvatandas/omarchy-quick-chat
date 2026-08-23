@@ -5,6 +5,15 @@ const HarnessPickerModel = require("../models/HarnessPickerModel.js")
 const EffortModel = require("../models/EffortModel.js")
 const TimeModel = require("../models/TimeModel.js")
 const TextBoundary = require("../models/TextBoundary.js")
+const OpenRequestModel = require("../models/OpenRequestModel.js")
+
+assert.deepEqual(OpenRequestModel.parse("null"), {})
+assert.deepEqual(OpenRequestModel.parse("[]"), {})
+assert.deepEqual(OpenRequestModel.parse('"opencode"'), {})
+assert.deepEqual(OpenRequestModel.parse("not-json"), {})
+assert.deepEqual(OpenRequestModel.parse('{"profileId":"opencode"}'), {
+  profileId: "opencode"
+})
 
 const state = ChatModel.initialState("conv-1", "codex")
 const started = ChatModel.beginRun(state, "req-1", "Say hello", [], false)

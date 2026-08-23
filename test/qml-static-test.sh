@@ -49,6 +49,8 @@ assert re.search(r"\bItem\s*\{", menu), "QuickChat.qml root must be an Item"
 assert re.search(r"\bItem\s*\{", service), "Service.qml root must be an Item"
 assert re.search(r"\bfunction\s+open\s*\(", menu), "menu must implement open()"
 assert re.search(r"\bfunction\s+close\s*\(", menu), "menu must implement close()"
+assert 'import "models/OpenRequestModel.js" as OpenRequestModel' in menu
+assert "return OpenRequestModel.parse(payloadJson)" in menu
 assert "Enter sends;\n`Ctrl+Enter` adds a line." in readme, (
     "usage documentation must match the composer key behavior"
 )

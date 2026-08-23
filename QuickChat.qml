@@ -3,6 +3,7 @@ import Quickshell.Hyprland
 import QtQuick
 import qs.Commons
 import qs.Ui
+import "models/OpenRequestModel.js" as OpenRequestModel
 import "ui"
 
 Item {
@@ -27,7 +28,7 @@ Item {
   )
 
   function parsePayload(payloadJson) {
-    try { return JSON.parse(payloadJson || "{}") } catch (error) { return ({}) }
+    return OpenRequestModel.parse(payloadJson)
   }
 
   function open(payloadJson) {
