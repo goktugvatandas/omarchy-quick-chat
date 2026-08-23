@@ -33,8 +33,8 @@ Item {
   function open(payloadJson) {
     var payload = parsePayload(payloadJson)
     openingPayload = payloadJson || "{}"
-    if (payload.profileId) chat.profileId = payload.profileId
     if (payload.conversationId) chat.conversationId = payload.conversationId
+    chat.activateProfile(payload.profileId || "")
     if (payload.acceptanceFixture) chat.showAcceptanceFixture(payload.acceptanceFixture)
 
     openingGeneration += 1

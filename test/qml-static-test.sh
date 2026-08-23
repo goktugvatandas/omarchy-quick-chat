@@ -465,6 +465,14 @@ assert "ProfileModel.create(root.profileState)" in chat_surface, (
 assert "ProfileModel.setDefault(root.profileState, profileId)" in chat_surface, (
     "picking a default launcher must persist through the profile model"
 )
+assert 'chat.activateProfile(payload.profileId || "")' in menu, (
+    "every summon must resolve an explicit launcher or the configured default"
+)
+assert "function activateProfile(requestedProfileId)" in chat_surface
+assert "function applyOpeningProfile()" in chat_surface
+assert "ProfileModel.resolveOpenProfile" in chat_surface
+assert "var profilesWereLoaded = Boolean(root.profileState)" in chat_surface
+assert "!profilesWereLoaded || !root.activeProfile()" in chat_surface
 collapsible = (root / "ui/CollapsibleSection.qml").read_text()
 assert "property bool expanded: false" in collapsible, (
     "collapsible sections must default to collapsed"

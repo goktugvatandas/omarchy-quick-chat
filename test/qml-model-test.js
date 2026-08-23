@@ -78,6 +78,18 @@ assert.equal(
 )
 assert.throws(() => ProfileModel.setDefault(createdLaunchers, "missing"))
 
+const openingProfiles = ProfileModel.normalize({
+  schemaVersion: 2,
+  selectedProfileId: "opencode",
+  profiles: [
+    { id: "codex", name: "Codex", adapterId: "codex" },
+    { id: "opencode", name: "OpenCode", adapterId: "opencode" }
+  ]
+})
+assert.equal(ProfileModel.resolveOpenProfile(openingProfiles, ""), "opencode")
+assert.equal(ProfileModel.resolveOpenProfile(openingProfiles, "codex"), "codex")
+assert.equal(ProfileModel.resolveOpenProfile(openingProfiles, "missing"), "opencode")
+
 const migratedProfiles = ProfileModel.normalize({
   schemaVersion: 1,
   selectedProfileId: "work",
