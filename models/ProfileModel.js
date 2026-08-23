@@ -222,6 +222,17 @@ function setDefault(state, profileId) {
   return next
 }
 
+function resolveOpenProfile(state, requestedProfileId) {
+  if (!state || !Array.isArray(state.profiles) || state.profiles.length === 0)
+    throw new Error("at least one profile is required")
+  var requested = String(requestedProfileId || "")
+  if (requested && state.profiles.some(function(profile) { return profile.id === requested }))
+    return requested
+  if (state.profiles.some(function(profile) { return profile.id === state.selectedId }))
+    return state.selectedId
+  return state.profiles[0].id
+}
+
 function duplicate(state, profileId) {
   var source = state.profiles.find(function(profile) { return profile.id === profileId })
   if (!source) throw new Error("profile not found")
@@ -275,6 +286,7 @@ if (typeof module !== "undefined") {
     update: update,
     create: create,
     setDefault: setDefault,
+    resolveOpenProfile: resolveOpenProfile,
     duplicate: duplicate,
     remove: remove,
     serialize: serialize

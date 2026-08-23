@@ -40,6 +40,8 @@ Item {
   property string profileSaveRequestId: ""
   property var profileSaveRollback: null
   property string profileSaveError: ""
+  property string openingProfileId: ""
+  property bool openingProfilePending: false
   readonly property bool hasBlockingTransient: Boolean(
     composer.popupOpen
       || profilePage.dialogOpen
@@ -126,6 +128,20 @@ Item {
     if (!nextProfileId || chatState.running) return
     profileId = nextProfileId
     chatState = ChatModel.initialState(conversationId, profileId)
+  }
+
+  function activateProfile(requestedProfileId) {
+    openingProfileId = String(requestedProfileId || "")
+    openingProfilePending = true
+    applyOpeningProfile()
+  }
+
+  function applyOpeningProfile() {
+    if (!openingProfilePending || !profileState) return
+    var nextProfileId = ProfileModel.resolveOpenProfile(profileState, openingProfileId)
+    openingProfilePending = false
+    openingProfileId = ""
+    if (nextProfileId !== profileId) selectProfile(nextProfileId)
   }
 
   function selectProfileModel(nextProfileId, modelId) {
@@ -535,9 +551,14 @@ Item {
       if (event.type === "ready") {
         root.requestProfilesAndHistory()
       } else if (event.type === "complete" && event.requestId === root.profilesRequestId) {
+        var profilesWereLoaded = Boolean(root.profileState)
         root.profileState = ProfileModel.normalize(event.data.config)
         root.adapterStates = event.data.adapters || []
-        root.profileId = root.profileState.selectedId
+        if (root.openingProfilePending) root.applyOpeningProfile()
+        else if (!profilesWereLoaded || !root.activeProfile()) {
+          var defaultProfileId = ProfileModel.resolveOpenProfile(root.profileState, "")
+          if (defaultProfileId !== root.profileId) root.selectProfile(defaultProfileId)
+        }
         Qt.callLater(function() {
           var profile = root.activeProfile()
           if (profile) root.requestModels(profile.adapterId, false, profile.id)

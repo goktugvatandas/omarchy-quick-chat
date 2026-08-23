@@ -5,6 +5,15 @@ const HarnessPickerModel = require("../models/HarnessPickerModel.js")
 const EffortModel = require("../models/EffortModel.js")
 const TimeModel = require("../models/TimeModel.js")
 const TextBoundary = require("../models/TextBoundary.js")
+const OpenRequestModel = require("../models/OpenRequestModel.js")
+
+assert.deepEqual(OpenRequestModel.parse("null"), {})
+assert.deepEqual(OpenRequestModel.parse("[]"), {})
+assert.deepEqual(OpenRequestModel.parse('"opencode"'), {})
+assert.deepEqual(OpenRequestModel.parse("not-json"), {})
+assert.deepEqual(OpenRequestModel.parse('{"profileId":"opencode"}'), {
+  profileId: "opencode"
+})
 
 const state = ChatModel.initialState("conv-1", "codex")
 const started = ChatModel.beginRun(state, "req-1", "Say hello", [], false)
@@ -77,6 +86,18 @@ assert.equal(
   "launcher"
 )
 assert.throws(() => ProfileModel.setDefault(createdLaunchers, "missing"))
+
+const openingProfiles = ProfileModel.normalize({
+  schemaVersion: 2,
+  selectedProfileId: "opencode",
+  profiles: [
+    { id: "codex", name: "Codex", adapterId: "codex" },
+    { id: "opencode", name: "OpenCode", adapterId: "opencode" }
+  ]
+})
+assert.equal(ProfileModel.resolveOpenProfile(openingProfiles, ""), "opencode")
+assert.equal(ProfileModel.resolveOpenProfile(openingProfiles, "codex"), "codex")
+assert.equal(ProfileModel.resolveOpenProfile(openingProfiles, "missing"), "opencode")
 
 const migratedProfiles = ProfileModel.normalize({
   schemaVersion: 1,

@@ -49,6 +49,8 @@ assert re.search(r"\bItem\s*\{", menu), "QuickChat.qml root must be an Item"
 assert re.search(r"\bItem\s*\{", service), "Service.qml root must be an Item"
 assert re.search(r"\bfunction\s+open\s*\(", menu), "menu must implement open()"
 assert re.search(r"\bfunction\s+close\s*\(", menu), "menu must implement close()"
+assert 'import "models/OpenRequestModel.js" as OpenRequestModel' in menu
+assert "return OpenRequestModel.parse(payloadJson)" in menu
 assert "Enter sends;\n`Ctrl+Enter` adds a line." in readme, (
     "usage documentation must match the composer key behavior"
 )
@@ -465,6 +467,14 @@ assert "ProfileModel.create(root.profileState)" in chat_surface, (
 assert "ProfileModel.setDefault(root.profileState, profileId)" in chat_surface, (
     "picking a default launcher must persist through the profile model"
 )
+assert 'chat.activateProfile(payload.profileId || "")' in menu, (
+    "every summon must resolve an explicit launcher or the configured default"
+)
+assert "function activateProfile(requestedProfileId)" in chat_surface
+assert "function applyOpeningProfile()" in chat_surface
+assert "ProfileModel.resolveOpenProfile" in chat_surface
+assert "var profilesWereLoaded = Boolean(root.profileState)" in chat_surface
+assert "!profilesWereLoaded || !root.activeProfile()" in chat_surface
 collapsible = (root / "ui/CollapsibleSection.qml").read_text()
 assert "property bool expanded: false" in collapsible, (
     "collapsible sections must default to collapsed"

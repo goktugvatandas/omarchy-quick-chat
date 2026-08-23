@@ -3,6 +3,7 @@ import Quickshell.Hyprland
 import QtQuick
 import qs.Commons
 import qs.Ui
+import "models/OpenRequestModel.js" as OpenRequestModel
 import "ui"
 
 Item {
@@ -27,14 +28,14 @@ Item {
   )
 
   function parsePayload(payloadJson) {
-    try { return JSON.parse(payloadJson || "{}") } catch (error) { return ({}) }
+    return OpenRequestModel.parse(payloadJson)
   }
 
   function open(payloadJson) {
     var payload = parsePayload(payloadJson)
     openingPayload = payloadJson || "{}"
-    if (payload.profileId) chat.profileId = payload.profileId
     if (payload.conversationId) chat.conversationId = payload.conversationId
+    chat.activateProfile(payload.profileId || "")
     if (payload.acceptanceFixture) chat.showAcceptanceFixture(payload.acceptanceFixture)
 
     openingGeneration += 1
