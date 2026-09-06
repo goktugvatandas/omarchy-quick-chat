@@ -81,17 +81,20 @@ for qml_path in root.rglob("*.qml"):
         f"{qml_path.name} must not override inherited compositor opacity"
     )
 assert 'title: "Quick Chat"' in menu
-assert "implicitWidth: Style.space(620)" in menu
-assert "implicitHeight: Style.space(620)" in menu
+assert "readonly property int preferredWindowWidth: Math.round(Style.space(620))" in menu
+assert "readonly property int preferredWindowHeight: Math.round(Style.space(620))" in menu
+assert "implicitWidth: root.preferredWindowWidth" in menu
+assert "implicitHeight: root.preferredWindowHeight" in menu
 assert "minimumSize: Qt.size(" in menu
 assert "Hyprland.usingLua ? luaRequest : legacyRequest" in menu
 assert 'hl.dsp.window.float({ action = "set", window = "' in menu
-assert 'hl.dsp.window.resize({ x = 620, y = 620, window = "' in menu
+assert "'hl.dsp.window.resize({ x = ' + width + ', y = ' + height" in menu
 assert 'hl.dsp.window.center({ window = "' in menu
 assert 'hl.dsp.window.fullscreen({ mode = "maximized", action = "' in menu
 assert '"setfloating " + selector' in menu
-assert '"resizewindowpixel exact 620 620," + selector' in menu
+assert '"resizewindowpixel exact " + width + " " + height + "," + selector' in menu
 assert '"centerwindow 1," + selector' in menu
+assert "resizewindowpixel exact 620 620" not in menu
 assert '"fullscreenstate " + legacyState + "," + selector' in menu
 assert "function normalizedWindowAddress(address)" in menu
 assert 'return raw.indexOf("0x") === 0 ? raw : "0x" + raw' in menu

@@ -26,6 +26,8 @@ Item {
       && quickToplevel.lastIpcObject
       && Number(quickToplevel.lastIpcObject.fullscreen) === 1
   )
+  readonly property int preferredWindowWidth: Math.round(Style.space(620))
+  readonly property int preferredWindowHeight: Math.round(Style.space(620))
 
   function parsePayload(payloadJson) {
     return OpenRequestModel.parse(payloadJson)
@@ -112,14 +114,17 @@ Item {
     if (!quickToplevel || placedGeneration === openingGeneration) return
     var selector = windowSelector(quickToplevel.address)
     if (!selector) return
+    var width = preferredWindowWidth
+    var height = preferredWindowHeight
     placedGeneration = openingGeneration
     dispatchWindow(
       "setfloating " + selector,
       'hl.dsp.window.float({ action = "set", window = "' + selector + '" })'
     )
     dispatchWindow(
-      "resizewindowpixel exact 620 620," + selector,
-      'hl.dsp.window.resize({ x = 620, y = 620, window = "' + selector + '" })'
+      "resizewindowpixel exact " + width + " " + height + "," + selector,
+      'hl.dsp.window.resize({ x = ' + width + ', y = ' + height
+        + ', window = "' + selector + '" })'
     )
     dispatchWindow(
       "centerwindow 1," + selector,
@@ -209,8 +214,8 @@ Item {
     title: "Quick Chat"
     visible: false
     color: Color.popups.background
-    implicitWidth: Style.space(620)
-    implicitHeight: Style.space(620)
+    implicitWidth: root.preferredWindowWidth
+    implicitHeight: root.preferredWindowHeight
     minimumSize: Qt.size(Style.space(480), Style.space(520))
 
     onVisibleChanged: {
