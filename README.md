@@ -2,10 +2,10 @@
 
 Quick Chat is a third-party Omarchy shell plugin for fast Q&A through agent
 CLIs already installed and authenticated on your machine. It opens as a
-keyboard-first, centered 620×620 standard floating window. It remains a normal
-desktop toplevel: other windows stay usable, Omarchy can tile or maximize it,
-and Chat, History, and Settings share the current window geometry instead of
-switching to a different shell surface.
+keyboard-first, centered, theme-scaled 620×620 standard floating window. It
+remains a normal desktop toplevel: other windows stay usable, Omarchy can tile
+or maximize it, and Chat, History, and Settings share the current window
+geometry instead of switching to a different shell surface.
 
 | Chat | Launchers |
 | --- | --- |
